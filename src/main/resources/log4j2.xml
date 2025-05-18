@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration monitorInterval="30">
+    <Properties>
+        <Property name="LOG_HOME">logs</Property>
+        <Property name="INFO_FILE_NAME">info.log</Property>
+        <Property name="ERROR_FILE_NAME">error.log</Property>
+        <Property name="PATTERN_LAYOUT">%d{HH:mm:ss,SS} %highlight{[%-5.5level]} %highlight{[%t]} %cyan{[%-40.40c{1.}] %-4line} - %msg%xEx%n</Property>
+    </Properties>
+    <Appenders>
+        <Console name="console" target="SYSTEM_OUT" follow="true">
+            <PatternLayout pattern="${PATTERN_LAYOUT}"/>
+        </Console>
+        <RollingFile name="file_info" fileName="${LOG_HOME}/${INFO_FILE_NAME}"
+                     filePattern="${LOG_HOME}/bak/%d{yyyy-MM-dd}.log">
+            <PatternLayout charSet="UTF-8" pattern="${PATTERN_LAYOUT}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="20"/>
+        </RollingFile>
+        <RollingFile name="file_error" fileName="${LOG_HOME}/${ERROR_FILE_NAME}"
+                     filePattern="${LOG_HOME}/bak/%d{yyyy-MM-dd}.log">
+            <PatternLayout charSet="UTF-8" pattern="${PATTERN_LAYOUT}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="20"/>
+            <Filters>
+                <ThresholdFilter level="error" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+        </RollingFile>
+    </Appenders>
+    <Loggers>
+        <Root level="warn">
+            <AppenderRef ref="console"/>
+            <AppenderRef ref="file_info"/>
+            <AppenderRef ref="file_error"/>
+        </Root>
+        <Logger name="org.springframework.boot.web.embedded.tomcat.TomcatWebServer" level="info"/>
+        <Logger name="org.springframework.ai" level="debug"/>
+        <Logger name="com.demo" level="debug"/>
+    </Loggers>
+</Configuration>

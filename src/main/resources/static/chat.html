@@ -3,33 +3,75 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local ChatGPT</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>客户端调试工具</title>
     <script>
-        // 对话默认设置
+        const windowsLocation = window.location.protocol + '//' + window.location.host;
         const DEFAULT_CHAT_SETTINGS = {
-            model: "qwen3",
-            streaming: false,
+            model: "community-finance-qwen3",
+            isStreaming: false,
             systemInstruction: "",
             temperature: 0.9,
             topP: 0.8,
             topK: 15,
             repetitionPenalty: 1.0,
-            streamingEndpoint: "http://localhost:9099/chat/sse",
-            nonStreamingEndpoint: "http://localhost:9099/chat"
+            apiUrl: windowsLocation,
+            streamingEndpoint: windowsLocation + "/chat/streaming",
+            nonStreamingEndpoint: windowsLocation + "/chat"
         };
     </script>
     <script src="script/tailwindcss@3.4.16.js"></script>
     <script src="script/marked@15.0.11.js"></script>
-    <link rel="stylesheet" href="css/fontawesome.min.css">
+    <link href="style/fontawesome.min.css" rel="stylesheet">
     <style>
-        /* Apple风格UI增强 */
+        .think-container {
+            background-color: #f0f7ff;
+            border-left: 4px solid #007aff;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin: 8px 0 16px 0;
+            position: relative;
+        }
+
+        .think-content {
+            display: none;
+            padding: 8px 0;
+            color: #333;
+        }
+
+        .think-content.show {
+            display: block;
+        }
+
+        .think-toggle {
+            color: #007aff;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            font-weight: 500;
+        }
+
+        .think-toggle i {
+            margin-right: 4px;
+            transition: transform 0.2s;
+        }
+
+        .think-toggle.open i {
+            transform: rotate(90deg);
+        }
+
+        .normal-content {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0, 122, 255, 0.1);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: #1d1d1f;
         }
 
-        /* 响应式设计 */
         @media (max-width: 768px) {
             .sidebar {
                 width: 100%;
@@ -126,6 +168,12 @@
             background-color: #007aff;
             color: white;
             border-radius: 18px 4px 18px 18px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .user-message:hover {
+            background-color: #0066cc;
         }
 
         .assistant-message {
@@ -134,7 +182,56 @@
             border: 1px solid #e5e5ea;
         }
 
-        /* DeepSeek风格输入框使用Apple配色 */
+        .edit-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+
+        .edit-button {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .save-button {
+            background-color: #007aff;
+            color: white;
+            border: none;
+        }
+
+        .save-button:hover {
+            background-color: #0066cc;
+        }
+
+        .cancel-button {
+            background-color: white;
+            color: #007aff;
+            border: 1px solid #d2d2d7;
+        }
+
+        .cancel-button:hover {
+            background-color: #E5F1FF;
+        }
+
+        .edit-textarea {
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #007aff;
+            font-size: 15px;
+            max-height: 300px;
+        }
+
+        .edit-textarea:focus {
+            border-color: #007aff;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+            outline: none;
+        }
+
         #messageInput {
             background-color: #f5f5f7;
             border-radius: 16px;
@@ -147,7 +244,7 @@
 
         #messageInput:focus {
             border-color: #007aff;
-            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
             outline: none;
         }
 
@@ -194,7 +291,53 @@
             color: #8e8e93;
         }
 
-        /* Apple风格消息提示 */
+        @keyframes modalFadeIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes modalFadeOut {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+        }
+
+        @keyframes modalBounce {
+            0% {
+                transform: scale(0.95);
+            }
+
+            50% {
+                transform: scale(1.03);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .modal-enter {
+            animation: modalFadeIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards,
+                modalBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .modal-exit {
+            animation: modalFadeOut 0.2s ease-out forwards;
+        }
+
         .notification {
             border-radius: 12px;
             padding: 12px 16px;
@@ -211,40 +354,34 @@
             margin-right: 8px;
         }
 
-        /* 成功消息 */
         .notification.success {
             background-color: rgba(52, 199, 89, 0.1);
             border-color: rgba(52, 199, 89, 0.2);
             color: #34C759;
         }
 
-        /* 警告消息 */
         .notification.warning {
             background-color: rgba(255, 204, 0, 0.1);
             border-color: rgba(255, 204, 0, 0.2);
             color: #FFCC00;
         }
 
-        /* 错误消息 */
         .notification.error {
             background-color: rgba(255, 59, 48, 0.1);
             border-color: rgba(255, 59, 48, 0.2);
             color: #FF3B30;
         }
 
-        /* 普通信息 */
         .notification.info {
             background-color: rgba(0, 122, 255, 0.1);
             border-color: rgba(0, 122, 255, 0.2);
             color: #007AFF;
         }
 
-        /* 平滑滚动效果 */
         #chatContainer {
             scroll-behavior: smooth;
         }
 
-        /* 细滚动条样式 */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -263,7 +400,6 @@
             background: #a8a8a8;
         }
 
-        /* 头像样式 */
         .avatar {
             width: 48px;
             height: 48px;
@@ -285,7 +421,6 @@
             color: #636366;
         }
 
-        /* 增强模型选择器 */
         .model-selector {
             position: relative;
             display: inline-block;
@@ -357,7 +492,6 @@
             margin-top: 4px;
         }
 
-        /* 侧边栏切换按钮 */
         .sidebar-toggle {
             transition: all 0.3s ease;
             z-index: 30;
@@ -380,14 +514,12 @@
             transform: rotate(180deg);
         }
 
-        /* 头部布局 */
         .header-content {
             display: flex;
             align-items: center;
             gap: 16px;
         }
 
-        /* 输入区域 */
         .input-container {
             max-width: 800px;
             margin: 0 auto;
@@ -396,7 +528,6 @@
             align-items: center;
         }
 
-        /* 头部容器 */
         .header-container {
             display: flex;
             justify-content: space-between;
@@ -405,7 +536,6 @@
             padding: 0 16px;
         }
 
-        /* 新历史记录区域样式 */
         .history-section {
             margin-top: 12px;
         }
@@ -431,7 +561,6 @@
             margin-bottom: 8px;
         }
 
-        /* 设置面板 */
         .settings-panel {
             position: fixed;
             top: 0;
@@ -486,7 +615,6 @@
             pointer-events: auto;
         }
 
-        /* 编辑名称输入框 */
         .edit-name-input {
             display: none;
             width: 100%;
@@ -494,6 +622,12 @@
             border: 1px solid #d2d2d7;
             border-radius: 4px;
             font-size: 14px;
+        }
+
+        .edit-name-input:focus {
+            border-color: #007aff;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+            outline: none;
         }
 
         .history-item.editing .edit-name-input {
@@ -504,13 +638,11 @@
             display: none;
         }
 
-        /* 新建聊天按钮禁用状态 */
         #newChatBtn.disabled {
             opacity: 0.5;
             pointer-events: none;
         }
 
-        /* 设置表单样式 */
         .settings-form-group {
             margin-bottom: 16px;
         }
@@ -552,7 +684,6 @@
             margin-bottom: 12px;
         }
 
-        /* 流式切换开关 */
         .stream-toggle {
             position: relative;
             display: inline-block;
@@ -657,15 +788,15 @@
 
 <body class="bg-white h-screen overflow-hidden">
     <!-- Sidebar -->
-    <div id="sidebar" class="sidebar flex flex-col h-full">
+    <div class="sidebar flex flex-col h-full" id="sidebar">
         <div class="p-12 border-b border-gray-200 flex justify-center items-center h-[60px]">
-            <button id="newChatBtn"
-                class="bg-white text-[#007aff] px-4 py-2 rounded-lg flex items-center space-x-2 border-2 border-[#007aff] hover:bg-[#007aff]/10 transition-colors h-[40px]">
+            <button class="bg-white text-[#007aff] px-4 py-2 rounded-lg flex items-center space-x-2 border-2 border-[#007aff] hover:bg-[#007aff]/10 transition-colors h-[40px]"
+                id="newChatBtn">
                 <i class="fas fa-plus"></i>
                 <span>新建对话</span>
             </button>
         </div>
-        <div id="historyList" class="flex-1 overflow-y-auto p-2">
+        <div class="flex-1 overflow-y-auto p-2" id="historyList">
             <!-- History items will be added here dynamically -->
             <div class="history-empty-state">
                 <div class="history-empty-icon">
@@ -677,7 +808,7 @@
     </div>
 
     <!-- Sidebar Toggle Button -->
-    <button id="sidebarToggle" class="sidebar-toggle text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+    <button class="sidebar-toggle text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors" id="sidebarToggle">
         <i class="fas fa-chevron-left"></i>
     </button>
 
@@ -691,29 +822,32 @@
                         <div class="model-selector-btn flex items-center justify-between min-w-[240px] bg-white border border-[#d2d2d7] rounded-[12px] px-4 py-2 cursor-pointer hover:bg-[#f5f5f7] transition-colors"
                             id="modelSelectorBtn">
                             <div class="flex-1">
-                                <div class="model-name font-medium" id="selectedModel">qwen3</div>
-                                <div class="model-description text-xs text-gray-500 mt-1 truncate">community-finance-qwen3</div>
+                                <div class="model-name font-medium" id="selectedModel">community-finance-qwen3</div>
+                                <div class="model-description text-xs text-gray-500 mt-1 truncate">
+                                    Qwen3
+                                </div>
                             </div>
                             <i class="fas fa-chevron-down text-xs text-gray-500 transition-transform duration-200"></i>
                         </div>
                         <div
                             class="model-selector-options absolute z-10 mt-2 w-full bg-white border border-[#d2d2d7] rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] py-1 transition-all duration-200 opacity-0 scale-95 origin-top">
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="qwen3">
-                                <div class="model-name font-medium">qwen3</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-qwen3</div>
+                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="community-finance-qwen3">
+                                <div class="model-name font-medium">community-finance-qwen3</div>
+                                <div class="model-description text-xs text-gray-500 mt-1">Qwen3</div>
                             </div>
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="qwen2">
-                                <div class="model-name font-medium">qwen2</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-qwen-72b</div>
+                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="community-finance-qwen-72b">
+                                <div class="model-name font-medium">community-finance-qwen-72b</div>
+                                <div class="model-description text-xs text-gray-500 mt-1">PnganGPT
+                                </div>
                             </div>
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="deepseek">
-                                <div class="model-name font-medium">deepseek</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-ai</div>
+                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="community-finance-ai">
+                                <div class="model-name font-medium">community-finance-ai</div>
+                                <div class="model-description text-xs text-gray-500 mt-1">DeepSeek R1 32B</div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <button id="settingsBtn" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-colors">
+                <button class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-colors" id="settingsBtn">
                     <i class="fas fa-cog"></i>
                     <span>对话设置</span>
                 </button>
@@ -721,7 +855,7 @@
         </div>
 
         <!-- Chat Messages -->
-        <div id="chatContainer" class="flex-1 overflow-y-auto p-16 space-y-4">
+        <div class="flex-1 overflow-y-auto p-16 space-y-4" id="chatContainer">
             <!-- Messages will be added here dynamically -->
             <div class="text-center text-gray-400 mt-16">
                 <i class="fas fa-comment-dots text-4xl mb-4"></i>
@@ -732,10 +866,10 @@
         <!-- Input Area -->
         <div class="bg-white border-t p-4">
             <div class="input-container">
-                <textarea id="messageInput"
+                <textarea
                     class="flex-1 w-full bg-[#f5f5f7] rounded-[16px] border border-[#e5e5ea] transition-all duration-300 p-3 text-[15px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,0.2)] focus:outline-none"
-                    rows="1"></textarea>
-                <button id="sendBtn" class="text-white p-3 disabled:opacity-50">
+                    id="messageInput" rows="1"></textarea>
+                <button class="text-white p-3 disabled:opacity-50" id="sendBtn">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </div>
@@ -743,20 +877,20 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+    <div class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm" id="confirmModal">
         <div class="modal-content bg-white rounded-xl p-6 max-w-sm w-full mx-4">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">删除对话</h3>
-                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
+                <button class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200" id="closeModalBtn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <p class="mb-6 text-gray-600">此对话将被永久删除，该操作不可撤销。</p>
             <div class="flex justify-end space-x-3">
-                <button id="cancelDeleteBtn" class="px-4 py-2 text-[#007aff] hover:bg-[#007aff]/10 rounded-lg transition-colors">
+                <button class="px-4 py-2 text-[#007aff] hover:bg-[#007aff]/10 rounded-lg transition-colors" id="cancelDeleteBtn">
                     取消
                 </button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-[#ff3b30] text-white rounded-lg hover:bg-[#ff3b30]/90 transition-colors">
+                <button class="px-4 py-2 bg-[#ff3b30] text-white rounded-lg hover:bg-[#ff3b30]/90 transition-colors" id="confirmDeleteBtn">
                     删除
                 </button>
             </div>
@@ -764,14 +898,14 @@
     </div>
 
     <!-- Settings Panel -->
-    <div id="settingsPanel" class="settings-panel">
+    <div class="settings-panel" id="settingsPanel">
         <div class="settings-header">
             <h3 class="text-lg font-semibold">对话设置</h3>
             <div class="flex items-center gap-4">
-                <button id="toggleHistoryBtn" class="text-xs text-gray-500 hover:text-gray-700">
+                <button class="text-xs text-gray-500 hover:text-gray-700" id="toggleHistoryBtn">
                     <i class="fas fa-history mr-1"></i>修改记录
                 </button>
-                <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
+                <button class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200" id="closeSettingsBtn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -782,22 +916,22 @@
                 <div class="space-y-3">
                     <div>
                         <label class="block text-sm text-gray-500 mb-1">对话模型</label>
-                        <select id="modelSelect" class="w-full p-2 border rounded">
-                            <option>qwen3</option>
-                            <option>qwen2</option>
-                            <option>deepseek</option>
+                        <select class="w-full p-2 border rounded" id="modelSelect">
+                            <option>community-finance-qwen3</option>
+                            <option>community-finance-qwen-72b</option>
+                            <option>community-finance-ai</option>
                         </select>
                     </div>
                     <div class="settings-form-group">
                         <label class="settings-label">系统指令</label>
-                        <textarea id="systemInstructionInput" class="settings-input settings-textarea" rows="10" placeholder="你是一个有帮助的助手..."></textarea>
+                        <textarea class="settings-input settings-textarea" id="systemInstructionInput" placeholder="你是一个有帮助的助手..." rows="10"></textarea>
                     </div>
                     <div class="settings-form-group">
                         <label class="settings-label">流式响应
                             <span class="text-sm text-gray-500 ml-2">控制是否启用流式响应模式</span>
                         </label>
                         <label class="stream-toggle">
-                            <input type="checkbox" id="streamingToggle">
+                            <input id="streamingToggle" type="checkbox">
                             <span class="stream-toggle-slider"></span>
                             <span class="stream-toggle-text on">开</span>
                             <span class="stream-toggle-text off">关</span>
@@ -811,11 +945,11 @@
                 <div class="space-y-3">
                     <div class="settings-form-group">
                         <label class="settings-label">流式接口地址</label>
-                        <input type="text" id="streamingEndpointInput" class="settings-input" placeholder="${DEFAULT_CHAT_SETTINGS.streamingEndpoint}">
+                        <input class="settings-input" id="streamingEndpointInput" placeholder="${DEFAULT_CHAT_SETTINGS.streamingEndpoint}" type="text">
                     </div>
                     <div class="settings-form-group">
                         <label class="settings-label">非流式接口地址</label>
-                        <input type="text" id="nonStreamingEndpointInput" class="settings-input" placeholder="${DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint}">
+                        <input class="settings-input" id="nonStreamingEndpointInput" placeholder="${DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint}" type="text">
                     </div>
                 </div>
 
@@ -823,41 +957,41 @@
                 <div class="settings-param-grid">
                     <div class="settings-param-group">
                         <label class="settings-label">温度</label>
-                        <input type="text" id="temperatureInput" class="settings-input" value="0.7" placeholder="0.0 - 1.0">
+                        <input class="settings-input" id="temperatureInput" placeholder="0.0 - 1.0" type="text" value="0.7">
                         <p class="text-xs text-gray-500 mt-1">控制随机性 (0=确定性)</p>
                     </div>
                     <div class="settings-param-group">
                         <label class="settings-label">Top P</label>
-                        <input type="text" id="topPInput" class="settings-input" value="1.0" placeholder="0.0 - 1.0">
+                        <input class="settings-input" id="topPInput" placeholder="0.0 - 1.0" type="text" value="1.0">
                         <p class="text-xs text-gray-500 mt-1">核心采样阈值</p>
                     </div>
                     <div class="settings-param-group">
                         <label class="settings-label">Top K</label>
-                        <input type="text" id="topKInput" class="settings-input" value="50" placeholder="1 - 100">
+                        <input class="settings-input" id="topKInput" placeholder="1 - 100" type="text" value="50">
                         <p class="text-xs text-gray-500 mt-1">限制为前 K 个 token</p>
                     </div>
                     <div class="settings-param-group">
                         <label class="settings-label">Repetition Penalty</label>
-                        <input type="text" id="repetitionPenaltyInput" class="settings-input" value="0.0" placeholder="-2.0 - 2.0">
+                        <input class="settings-input" id="repetitionPenaltyInput" placeholder="-2.0 - 2.0" type="text" value="0.0">
                         <p class="text-xs text-gray-500 mt-1">惩罚重复的 token</p>
                     </div>
                 </div>
                 <div class="mt-6">
-                    <button id="saveSettingsBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors" id="saveSettingsBtn">
                         保存
                     </button>
                 </div>
             </div>
         </div>
     </div>
-    <div id="settingsOverlay" class="settings-overlay"></div>
+    <div class="settings-overlay" id="settingsOverlay"></div>
 
     <!-- 修改记录 Modal -->
-    <div id="historyModal" class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+    <div class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm" id="historyModal">
         <div class="modal-content bg-white rounded-xl p-6 w-[600px] max-h-[80vh] flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">修改记录</h3>
-                <button id="closeHistoryModalBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
+                <button class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200" id="closeHistoryModalBtn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -865,24 +999,25 @@
                 <div class="mb-2">
                     <span class="text-sm font-medium">历史版本</span>
                 </div>
-                <div id="chatChangeList" class="space-y-2 max-h-[40vh] overflow-y-auto">
+                <div class="space-y-2 max-h-[40vh] overflow-y-auto" id="chatChangeList">
                     <div class="text-center text-gray-400 py-4 text-sm">
                         暂无修改记录
                     </div>
                 </div>
-                <div id="historyPreview" class="hidden mt-4 bg-white rounded-lg p-4 border border-gray-200">
+                <div class="hidden mt-4 bg-white rounded-lg p-4 border border-gray-200" id="historyPreview">
                     <h5 class="font-medium mb-2">版本详情</h5>
-                    <div id="previewContent" class="text-sm text-gray-700">
+                    <div class="text-sm text-gray-700" id="previewContent">
                         <!-- 预览内容将在这里显示 -->
                     </div>
-                    <div id="diffContent" class="mt-3 text-xs bg-gray-50 p-2 rounded hidden">
+                    <div class="mt-3 text-xs bg-gray-50 p-2 rounded hidden" id="diffContent">
                         <div class="grid grid-cols-2 gap-2">
                             <div class="overflow-auto max-h-96">
                                 <div class="text-red-500 mb-1">旧值</div>
                                 <div class="text-xs text-gray-500 mb-2" id="oldValueTime"></div>
-                                <div id="oldValue" class="font-mono text-sm bg-gray-50 p-2 rounded">
+                                <div class="font-mono text-sm bg-gray-50 p-2 rounded" id="oldValue">
                                     <div class="flex">
-                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right"></div>
+                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right">
+                                        </div>
                                         <div class="pl-2 break-all whitespace-pre-wrap"></div>
                                     </div>
                                 </div>
@@ -890,9 +1025,10 @@
                             <div class="overflow-auto max-h-96">
                                 <div class="text-green-500 mb-1">新值</div>
                                 <div class="text-xs text-gray-500 mb-2" id="newValueTime"></div>
-                                <div id="newValue" class="font-mono text-sm bg-gray-50 p-2 rounded">
+                                <div class="font-mono text-sm bg-gray-50 p-2 rounded" id="newValue">
                                     <div class="flex">
-                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right"></div>
+                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right">
+                                        </div>
                                         <div class="pl-2 break-all whitespace-pre-wrap"></div>
                                     </div>
                                 </div>
@@ -991,17 +1127,17 @@
 
         // 模型信息
         const modelInfo = {
-            'qwen3': {
-                name: 'qwen3',
-                description: "community-finance-qwen3"
+            'community-finance-qwen3': {
+                name: 'community-finance-qwen3',
+                description: "Qwen3"
             },
-            'qwen2': {
-                name: 'qwen2',
-                description: "community-finance-qwen-72b"
+            'community-finance-qwen-72b': {
+                name: 'community-finance-qwen-72b',
+                description: "PnganGPT"
             },
-            'deepseek': {
-                name: 'deepseek',
-                description: "community-finance-ai"
+            'community-finance-ai': {
+                name: 'community-finance-ai',
+                description: "DeepSeek R1 32B"
             }
         };
 
@@ -1028,6 +1164,15 @@
                 return chat;
             }
             return null;
+        }
+
+        // 生成UUID的函数
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
         }
 
         // 初始化应用
@@ -1133,7 +1278,7 @@
                 topKInput.value = chat.settings.topK || DEFAULT_CHAT_SETTINGS.topK;
                 repetitionPenaltyInput.value = chat.settings.repetitionPenalty || DEFAULT_CHAT_SETTINGS.repetitionPenalty;
                 modelSelect.value = chat.settings.model || DEFAULT_CHAT_SETTINGS.model;
-                streamingToggle.checked = chat.settings.streaming || DEFAULT_CHAT_SETTINGS.streaming;
+                streamingToggle.checked = chat.settings.isStreaming || DEFAULT_CHAT_SETTINGS.isStreaming;
                 streamingEndpointInput.value = chat.settings.streamingEndpoint || DEFAULT_CHAT_SETTINGS.streamingEndpoint;
                 nonStreamingEndpointInput.value = chat.settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint;
 
@@ -1142,7 +1287,7 @@
                 nonStreamingEndpointInput.placeholder = chat.settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint;
 
                 // 更新流式切换状态
-                streamToggle.checked = chat.settings.streaming;
+                streamToggle.checked = chat.settings.isStreaming;
                 updateStreamToggleState();
 
                 // 更新当前模型选择
@@ -1160,7 +1305,7 @@
                 // 保存到当前聊天设置
                 chat.settings = {
                     model: modelSelect.value,
-                    streaming: streamToggle.checked,  // 使用主开关状态
+                    isStreaming: streamToggle.checked,  // 使用主开关状态
                     systemInstruction: systemInstructionInput.value,
                     temperature: parseFloat(temperatureInput.value) || 0.9,
                     topP: parseFloat(topPInput.value) || 0.8,
@@ -1171,7 +1316,7 @@
                 // 更新当前模型和流式状态
                 currentModel = chat.settings.model;
                 selectedModel.textContent = currentModel;
-                streamToggle.checked = chat.settings.streaming;
+                streamToggle.checked = chat.settings.isStreaming;
                 updateStreamToggleState();
 
                 saveChats();
@@ -1265,11 +1410,18 @@
         function showModal(chatId, onConfirm) {
             chatToDelete = chatId;
             confirmModal.classList.remove('hidden');
+            confirmModal.classList.add('modal-enter');
+            confirmModal.classList.remove('modal-exit');
         }
 
         function hideModal() {
-            confirmModal.classList.add('hidden');
-            chatToDelete = null;
+            confirmModal.classList.add('modal-exit');
+            confirmModal.classList.remove('modal-enter');
+
+            setTimeout(() => {
+                confirmModal.classList.add('hidden');
+                chatToDelete = null;
+            }, 200); // 匹配动画时长
         }
 
         function confirmDelete() {
@@ -1323,7 +1475,7 @@
             saveChats();
 
             // Initialize stream toggle from chat settings
-            streamToggle.checked = newChat.settings.streaming;
+            streamToggle.checked = newChat.settings.isStreaming;
             updateStreamToggleState();
 
             renderHistory();
@@ -1337,7 +1489,7 @@
             if (!chat) return;
 
             currentChatId = chatId;
-            currentModel = chat.settings.model || "qwen3";
+            currentModel = chat.settings.model || "community-finance-qwen3";
             selectedModel.textContent = currentModel;
 
             // Update model description with defensive check
@@ -1350,11 +1502,11 @@
             });
 
             // Initialize stream toggle from chat settings
-            streamToggle.checked = chat.settings.streaming;
+            streamToggle.checked = chat.settings.isStreaming;
             updateStreamToggleState();
 
             // Ensure settings panel toggle matches chat settings
-            streamingToggle.checked = chat.settings.streaming;
+            streamingToggle.checked = chat.settings.isStreaming;
 
             renderChat(chat.messages);
 
@@ -1370,6 +1522,32 @@
         // Save chat data to localStorage
         function saveChats() {
             localStorage.setItem('chats', JSON.stringify(chats));
+        }
+
+        // 处理think标签内容
+        function processThinkContent(content) {
+            const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+            if (!thinkMatch) return marked.parse(content);
+
+            const thinkContent = thinkMatch[1].trim();
+            const restContent = content.replace(thinkMatch[0], '').trim();
+
+            // 如果think标签内容为空，则完全不显示think相关部分
+            if (!thinkContent) {
+                return restContent ? marked.parse(restContent) : '';
+            }
+
+            return `
+<div class="think-container">
+<div class="think-toggle" onclick="this.classList.toggle('open');
+this.nextElementSibling.classList.toggle('show')">
+<i class="fas fa-chevron-right"></i>
+<span>深度思考</span>
+</div>
+<div class="think-content">${marked.parse(thinkContent)}</div>
+</div>
+${restContent ? `<div class="normal-content">${marked.parse(restContent)}</div>` : ''}
+`;
         }
 
         // 渲染聊天消息
@@ -1388,11 +1566,11 @@
 
             if (messages.length === 0) {
                 chatContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                    <i class="fas fa-comment-dots text-4xl mb-4"></i>
-                    <p class="text-xl font-light">开始新的对话</p>
-                </div>
-                `;
+<div class="flex flex-col items-center justify-center h-full text-gray-400">
+<i class="fas fa-comment-dots text-4xl mb-4"></i>
+<p class="text-xl font-light">开始新的对话</p>
+</div>
+`;
                 return;
             }
 
@@ -1403,43 +1581,56 @@
                 if (msg.role === 'assistant') {
                     // Assistant message with avatar on left
                     messageDiv.innerHTML = `
-                        <div class="flex flex-col items-center">
-                            <div class="avatar assistant-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">${msg.model || 'Assistant'}</div>
-                        </div>
-                        <div class="max-w-[75%]">
-                            <div class="p-4 assistant-message">${marked.parse(msg.content)}</div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
-                                ${msg.elapsedTime ? ` · 耗时 ${msg.elapsedTime}ms` : ''}
-                                <span class="ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                                    ${msg.streaming ? '流式' : '非流式'}
-                                </span>
-                            </div>
-                        </div>
-                    `;
+<div class="flex flex-col items-center">
+<div class="avatar assistant-avatar">
+<i class="fas fa-robot"></i>
+</div>
+<div class="text-xs text-gray-500 mt-1" style="width: 68px; display: inline-block; text-align: center;">${msg.model || 'Assistant'}</div>
+</div>
+<div class="max-w-[75%]">
+<div class="p-4 assistant-message">${processThinkContent(msg.content)}</div>
+<div class="text-xs text-gray-500 mt-1">
+${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
+${msg.elapsedTime ? ` · 耗时 ${msg.elapsedTime}ms` : ''}
+<span class="ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+${msg.isStreaming ? '流式' : '非流式'}
+</span>
+</div>
+</div>
+`;
                 } else {
                     // User message with avatar on right (swapped positions)
                     messageDiv.innerHTML = `
-                        <div class="max-w-[75%] relative">
-                            <div class="p-4 user-message">${marked.parse(msg.content)}</div>
-                            <div class="text-xs text-gray-500 mt-1 text-right">
-                                ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
-                                <button class="resend-btn ml-2 text-blue-600 opacity-0 hover:opacity-100 transition-opacity" 
-                                    data-msg-index="${messages.indexOf(msg)}">
-                                    <i class="fas fa-redo mr-1"></i>重新发送
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center">
-                            <div class="avatar user-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">You</div>
-                        </div>
-                    `;
+<div class="max-w-[75%] relative">
+<div class="p-4 user-message" ondblclick="startEditMessage(this, ${messages.indexOf(msg)})">${processThinkContent(msg.content)}</div>
+<div class="edit-message-container hidden">
+<div class="relative">
+<textarea class="edit-textarea" rows="3" cols="30"></textarea>
+<div class="edit-buttons absolute bottom-4 right-4 flex gap-2">
+<button class="edit-button cancel-button" onclick="cancelEditMessage(this)">
+  取消
+</button>
+<button class="edit-button save-button" onclick="saveEditMessage(this, ${messages.indexOf(msg)})">
+  发送
+</button>
+</div>
+</div>
+</div>
+<div class="text-xs text-gray-500 mt-1 text-right">
+${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
+<button class="resend-btn ml-2 text-blue-600 opacity-0 hover:opacity-100 transition-opacity"
+data-msg-index="${messages.indexOf(msg)}">
+<i class="fas fa-redo mr-1"></i>重新发送
+</button>
+</div>
+</div>
+<div class="flex flex-col items-center">
+<div class="avatar user-avatar">
+<i class="fas fa-user"></i>
+</div>
+<div class="text-xs text-gray-500 mt-1">You</div>
+</div>
+`;
                 }
 
                 chatContainer.appendChild(messageDiv);
@@ -1493,13 +1684,13 @@
             const sortedChats = [...chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             if (!sortedChats || sortedChats.length === 0) {
                 historyList.innerHTML = `
-                    <div class="history-empty-state">
-                        <div class="history-empty-icon">
-                            <i class="fas fa-comments"></i>
-                        </div>
-                        <p>暂无对话记录</p>
-                    </div>
-                `;
+<div class="history-empty-state">
+<div class="history-empty-icon">
+<i class="fas fa-comments"></i>
+</div>
+<p>暂无对话记录</p>
+</div>
+`;
                 return;
             }
 
@@ -1527,26 +1718,23 @@
                     const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                     historyItem.innerHTML = `
-                        <div class="flex-1 min-w-0">
-                            <div class="history-name truncate text-sm" title="${chat.name}">${chat.name}</div>
-                            <input type="text" class="edit-name-input" value="${chat.name}" maxlength="50">
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">${timeString}</span>
-                            <button class="edit-btn p-1 rounded-full hover:bg-gray-200 transition-colors">
-                                <i class="fas fa-pencil-alt text-xs"></i>
-                            </button>
-                            <button class="delete-btn p-1 rounded-full hover:bg-gray-200 transition-colors">
-                                <i class="fas fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                    `;
+<div class="flex-1 min-w-0">
+<div class="history-name truncate text-sm" title="${chat.name}">${chat.name}</div>
+<input type="text" class="edit-name-input" value="${chat.name}" maxlength="40">
+</div>
+<div class="flex items-center space-x-2">
+<span class="text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">${timeString}</span>
+<button class="delete-btn p-1 rounded-full hover:bg-gray-200 transition-colors">
+<i class="fas fa-trash text-xs"></i>
+</button>
+</div>
+`;
 
                     // Add click handler for loading chat
                     historyItem.querySelector('.history-name').addEventListener('click', () => loadChat(chat.id));
 
-                    // Add click handler for edit button
-                    historyItem.querySelector('.edit-btn').addEventListener('click', (e) => {
+                    // Add double click handler for title edit
+                    historyItem.querySelector('.history-name').addEventListener('dblclick', (e) => {
                         e.stopPropagation();
                         startEditingChatName(historyItem, chat);
                     });
@@ -1594,6 +1782,70 @@
             }
             if (groupedChats.older.length > 0) {
                 historyList.appendChild(renderSection('更早', groupedChats.older));
+            }
+        }
+
+  // 开始编辑消息
+  function startEditMessage(messageElement, msgIndex) {
+      const messageContainer = messageElement.closest('.max-w-\\[75\\%\\]');
+      const editContainer = messageContainer.querySelector('.edit-message-container');
+      const textarea = editContainer.querySelector('textarea');
+
+      // 保存原始内容
+      textarea.value = messageElement.textContent.trim();
+
+      // 显示编辑界面
+      messageElement.classList.add('hidden');
+      editContainer.classList.remove('hidden');
+      textarea.focus();
+
+      // 添加失去焦点处理
+      textarea.addEventListener('blur', (e) => {
+          if (!e.relatedTarget || !e.relatedTarget.closest('.edit-buttons')) {
+              messageElement.classList.remove('hidden');
+              editContainer.classList.add('hidden');
+          }
+      });
+  }
+
+        // 取消编辑消息
+        function cancelEditMessage(button) {
+            const editContainer = button.closest('.edit-message-container');
+            const messageContainer = editContainer.closest('.max-w-\\[75\\%\\]');
+
+            // 恢复原始显示
+            messageContainer.querySelector('.user-message').classList.remove('hidden');
+            editContainer.classList.add('hidden');
+        }
+
+        // 保存编辑后的消息
+        function saveEditMessage(button, msgIndex) {
+            const editContainer = button.closest('.edit-message-container');
+            const textarea = editContainer.querySelector('textarea');
+            const newContent = textarea.value.trim();
+            const messageContainer = editContainer.closest('.max-w-\\[75\\%\\]');
+            const messageElement = messageContainer.querySelector('.user-message');
+
+            if (!newContent) {
+                notification.error('消息内容不能为空');
+                return;
+            }
+
+            // 更新消息内容
+            const chat = getCurrentChat();
+            if (chat && chat.messages[msgIndex]) {
+                const oldContent = chat.messages[msgIndex].content;
+                if (oldContent !== newContent) {
+                    chat.messages[msgIndex].content = newContent;
+                    messageElement.innerHTML = processThinkContent(newContent);
+                    saveChats();
+                    resendMessage(msgIndex);
+                    notification.success('消息已更新');
+                }
+
+                // 恢复原始显示
+                messageElement.classList.remove('hidden');
+                editContainer.classList.add('hidden');
             }
         }
 
@@ -1671,7 +1923,7 @@
                     content: messageContent,
                     timestamp: new Date().toISOString(),
                     sentTime: Date.now(),
-                    streaming: currentChat.settings.streaming
+                    isStreaming: currentChat.settings.isStreaming
                 };
                 currentChat.messages.push(userMessage);
             }
@@ -1719,13 +1971,13 @@
             const prepareRequestData = () => {
                 return {
                     chatId: currentChatId,
-                    reqId: crypto.randomUUID(),
+                    reqId: generateUUID(),
                     query: latestUserMessage,
                     messages: chatHistory,
                     settings: {
                         model: currentChat.settings.model,
                         systemInstruction: currentChat.settings.systemInstruction,
-                        streaming: currentChat.settings.streaming,
+                        isStreaming: currentChat.settings.isStreaming,
                         temperature: currentChat.settings.temperature,
                         topP: currentChat.settings.topP,
                         topK: currentChat.settings.topK,
@@ -1736,7 +1988,7 @@
 
             // 获取API端点
             const getEndpoint = () => {
-                return currentChat.settings.streaming ?
+                return currentChat.settings.isStreaming ?
                     currentChat.settings.streamingEndpoint :
                     currentChat.settings.nonStreamingEndpoint;
             };
@@ -1783,7 +2035,7 @@
                     model: currentChat.settings.model,
                     timestamp: new Date().toISOString(),
                     elapsedTime: 0,
-                    streaming: currentChat.settings.streaming
+                    isStreaming: currentChat.settings.isStreaming
                 };
 
                 const readStream = async () => {
@@ -1795,13 +2047,18 @@
                     const chunk = decoder.decode(value, { stream: true });
                     const lines = chunk.split('\n');
                     let buffer = '';
-
                     for (const line of lines) {
                         if (line.trim() === '') continue;
-                        if (line.startsWith('data:')) {
+                        if (line === 'data:') {
+                            continue;
+                        } else if (line.startsWith('data:')) {
                             const data = line.substring(5).trim();
                             buffer += data;
+                        } else {
+                            buffer += line;
+                        }
 
+                        if (buffer) {
                             try {
                                 const parsed = JSON.parse(buffer);
                                 if (parsed.delta && parsed.status === 'delta') {
@@ -1841,7 +2098,7 @@
                     model: currentChat.settings.model,
                     timestamp: new Date().toISOString(),
                     elapsedTime: 0,
-                    streaming: currentChat.settings.streaming
+                    isStreaming: currentChat.settings.isStreaming
                 };
 
                 handleApiSuccess(assistantMessage);
@@ -1861,7 +2118,7 @@
                         body: JSON.stringify(requestData)
                     });
 
-                    if (currentChat.settings.streaming) {
+                    if (currentChat.settings.isStreaming) {
                         await handleStreamResponse(response);
                     } else {
                         await handleNonStreamResponse(response);
@@ -1893,11 +2150,11 @@
             }
 
             localStorage.setItem(historyKey, JSON.stringify(history));
-            renderchatChange(chatId);
+            renderChatChange(chatId);
         }
 
         // 渲染修改记录
-        function renderchatChange(chatId) {
+        function renderChatChange(chatId) {
             if (!chatId) return;
 
             const historyKey = `chatChange_${chatId}`;
@@ -1908,10 +2165,10 @@
 
             if (history.length === 0) {
                 historyList.innerHTML = `
-                        <div class="text-center text-gray-400 py-4 text-sm">
-                            暂无修改记录
-                        </div>
-                    `;
+<div class="text-center text-gray-400 py-4 text-sm">
+暂无修改记录
+</div>
+`;
                 return;
             }
 
@@ -1927,14 +2184,14 @@
                 const dateStr = date.toLocaleDateString();
 
                 recordElement.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="font-medium">${dateStr} ${timeStr}</span>
-                                <span class="text-gray-500 ml-2">${getActionText(record.action)}</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-xs text-gray-400"></i>
-                        </div>
-                    `;
+<div class="flex justify-between items-center">
+<div>
+<span class="font-medium">${dateStr} ${timeStr}</span>
+<span class="text-gray-500 ml-2">${getActionText(record.action)}</span>
+</div>
+<i class="fas fa-chevron-right text-xs text-gray-400"></i>
+</div>
+`;
 
                 recordElement.addEventListener('click', () => {
                     selectedHistoryVersion = index;
@@ -2052,9 +2309,9 @@
                 notificationElement.style.whiteSpace = 'pre-wrap';
                 notificationElement.style.wordBreak = 'break-word';
                 notificationElement.innerHTML = `
-                    <i class="fas ${this.icons[type] || this.icons.info}"></i>
-                    <span>${message}</span>
-                `;
+<i class="fas ${this.icons[type] || this.icons.info}"></i>
+<span>${message}</span>
+`;
 
                 this.container.appendChild(notificationElement);
                 this.container.classList.remove('translate-x-full');
@@ -2100,7 +2357,7 @@
                 // 更新聊天设置
                 chat.settings = {
                     model: modelSelect.value,
-                    streaming: streamingToggle.checked,  // 使用主开关状态
+                    isStreaming: streamingToggle.checked,  // 使用主开关状态
                     systemInstruction: systemInstructionInput.value,
                     temperature: parseFloat(temperatureInput.value) || 0.7,
                     topP: parseFloat(topPInput.value) || 1.0,
@@ -2118,7 +2375,7 @@
                     // 更新当前模型和流式状态
                     currentModel = chat.settings.model;
                     selectedModel.textContent = currentModel;
-                    streamToggle.checked = chat.settings.streaming;
+                    streamToggle.checked = chat.settings.isStreaming;
                     updateStreamToggleState();
 
                     saveChats();
@@ -2133,7 +2390,7 @@
         function showHistoryModal() {
             const modal = document.getElementById('historyModal');
             modal.classList.remove('hidden');
-            renderchatChange(currentChatId);
+            renderChatChange(currentChatId);
 
             // 默认选中第一条记录并触发点击
             setTimeout(() => {
@@ -2173,7 +2430,7 @@
                         setTimeout(() => {
                             const historyContainer = document.getElementById('historyContainer');
                             if (historyContainer && !historyContainer.classList.contains('hidden')) {
-                                renderchatChange(currentChatId);
+                                renderChatChange(currentChatId);
                             }
                         }, 100);
                     });

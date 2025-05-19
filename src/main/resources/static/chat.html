@@ -2,2187 +2,2209 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local ChatGPT</title>
-    <script>
-        // 对话默认设置
-        const DEFAULT_CHAT_SETTINGS = {
-            model: "qwen3",
-            streaming: false,
-            systemInstruction: "",
-            temperature: 0.9,
-            topP: 0.8,
-            topK: 15,
-            repetitionPenalty: 1.0,
-            streamingEndpoint: "http://localhost:9099/chat/sse",
-            nonStreamingEndpoint: "http://localhost:9099/chat"
-        };
-    </script>
-    <script src="script/tailwindcss@3.4.16.js"></script>
-    <script src="script/marked@15.0.11.js"></script>
-    <link rel="stylesheet" href="css/fontawesome.min.css">
-    <style>
-        /* Apple风格UI增强 */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #1d1d1f;
-        }
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>客户端调试工具</title>
+  <script>
+    const windowsLocation = window.location.protocol + '//' + window.location.host;
+    const DEFAULT_CHAT_SETTINGS = {
+        model: "community-finance-qwen3",
+        isStreaming: false,
+        systemInstruction: "",
+        temperature: 0.9,
+        topP: 0.8,
+        topK: 15,
+        repetitionPenalty: 1.0,
+        streamingEndpoint: windowsLocation + "/chat/streaming",
+        nonStreamingEndpoint: windowsLocation + "/chat"
+    };
+  </script>
+  <script src="script/jquery@3.7.1.js"></script>
+  <script src="script/tailwindcss@3.4.16.js"></script>
+  <script src="script/marked@15.0.11.js"></script>
+  <link href="style/fontawesome.min.css" rel="stylesheet">
+  <style>
+    .think-container {
+        background-color: #f0f0f0;
+        border-left: 3px solid #007aff;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin: 8px 0 16px 0;
+        position: relative;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
 
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: fixed;
-                z-index: 100;
-                transform: translateX(-100%);
-            }
+    .think-content {
+        display: none;
+        padding: 8px 0;
+        color: #333;
+    }
 
-            .sidebar.collapsed {
-                transform: translateX(-100%);
-            }
+    .think-content.show {
+        display: block;
+    }
 
-            .sidebar:not(.collapsed) {
-                transform: translateX(0);
-            }
+    .think-toggle {
+        color: #007aff;
+        cursor: pointer;
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+    }
 
-            .main-content {
-                margin-left: 0 !important;
-            }
+    .think-toggle i {
+        margin-right: 4px;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-            .sidebar-toggle {
-                left: 16px !important;
-            }
+    .think-toggle.open i {
+        transform: rotate(90deg);
+    }
 
-            #chatContainer {
-                padding: 1rem !important;
-            }
+    .normal-content {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e5ea;
+    }
 
-            .input-container {
-                width: 100% !important;
-                padding: 0 1rem;
-            }
+    body {
+        font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+        color: #1d1d1f;
+    }
 
-            .message-input-container {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-
-            #messageInput {
-                width: 100%;
-            }
-
-            #sendBtn {
-                width: 100%;
-                margin-left: 0 !important;
-            }
-
-            .user-message,
-            .assistant-message {
-                max-width: 90%;
-            }
-        }
-
+    @media (max-width: 768px) {
         .sidebar {
-            background-color: #f5f5f7;
-            border-right: 1px solid #d2d2d7;
-            transition: transform 0.3s ease;
+            width: 100%;
             position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 250px;
-            overflow: auto;
-            z-index: 20;
+            z-index: 100;
+            transform: translateX(-100%);
         }
 
         .sidebar.collapsed {
             transform: translateX(-100%);
         }
 
-        .main-content {
-            margin-left: 260px;
-            transition: margin 0.3s ease;
-        }
-
-        .sidebar.collapsed~.main-content {
-            margin-left: 0;
-        }
-
-        .history-item {
-            transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
-        }
-
-        .history-item:hover {
-            background-color: rgba(0, 122, 255, 0.1);
-        }
-
-        .history-item.active {
-            background-color: rgba(0, 122, 255, 0.1);
-            border-left: 3px solid #007aff;
-        }
-
-        .user-message {
-            background-color: #007aff;
-            color: white;
-            border-radius: 18px 4px 18px 18px;
-        }
-
-        .assistant-message {
-            background-color: #f5f5f7;
-            border-radius: 4px 18px 18px 18px;
-            border: 1px solid #e5e5ea;
-        }
-
-        /* DeepSeek风格输入框使用Apple配色 */
-        #messageInput {
-            background-color: #f5f5f7;
-            border-radius: 16px;
-            border: 1px solid #e5e5ea;
-            transition: all 0.3s ease;
-            padding: 12px 16px;
-            font-size: 15px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        }
-
-        #messageInput:focus {
-            border-color: #007aff;
-            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
-            outline: none;
-        }
-
-        #sendBtn {
-            background-color: #007aff;
-            border-radius: 16px;
-            padding: 12px 16px;
-            margin-left: 8px;
-            transition: all 0.2s;
-        }
-
-        #sendBtn:hover {
-            background-color: #0066cc;
-        }
-
-        #sendBtn:disabled {
-            background-color: #e5e5ea;
-            color: #8e8e93;
-        }
-
-        .modal-content {
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .delete-btn {
-            color: #ff3b30;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .edit-btn {
-            color: #007aff;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .history-item:hover .edit-btn,
-        .history-item:hover .delete-btn {
-            opacity: 1;
-        }
-
-        .spinner {
-            color: #8e8e93;
-        }
-
-        /* Apple风格消息提示 */
-        .notification {
-            border-radius: 12px;
-            padding: 12px 16px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            max-width: 80%;
-            margin: 16px auto;
-            display: flex;
-            align-items: center;
-            border: 1px solid;
-        }
-
-        .notification i {
-            margin-right: 8px;
-        }
-
-        /* 成功消息 */
-        .notification.success {
-            background-color: rgba(52, 199, 89, 0.1);
-            border-color: rgba(52, 199, 89, 0.2);
-            color: #34C759;
-        }
-
-        /* 警告消息 */
-        .notification.warning {
-            background-color: rgba(255, 204, 0, 0.1);
-            border-color: rgba(255, 204, 0, 0.2);
-            color: #FFCC00;
-        }
-
-        /* 错误消息 */
-        .notification.error {
-            background-color: rgba(255, 59, 48, 0.1);
-            border-color: rgba(255, 59, 48, 0.2);
-            color: #FF3B30;
-        }
-
-        /* 普通信息 */
-        .notification.info {
-            background-color: rgba(0, 122, 255, 0.1);
-            border-color: rgba(0, 122, 255, 0.2);
-            color: #007AFF;
-        }
-
-        /* 平滑滚动效果 */
-        #chatContainer {
-            scroll-behavior: smooth;
-        }
-
-        /* 细滚动条样式 */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-
-        /* 头像样式 */
-        .avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-
-        .user-avatar {
-            background-color: #007aff;
-            color: white;
-        }
-
-        .assistant-avatar {
-            background-color: #e5e5ea;
-            color: #636366;
-        }
-
-        /* 增强模型选择器 */
-        .model-selector {
-            position: relative;
-            display: inline-block;
-            margin-left: 24px;
-        }
-
-        .model-selector-btn {
-            background-color: white;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-width: 240px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .model-selector-btn:hover {
-            background-color: #f5f5f7;
-        }
-
-        .model-selector-options {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background-color: white;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            width: 100%;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            z-index: 10;
-            opacity: 0;
-            transform: scale(0.95);
-            transform-origin: top;
-            transition: all 0.2s;
-            pointer-events: none;
-        }
-
-        .model-selector.open .model-selector-options {
-            opacity: 1;
-            transform: scale(1);
-            pointer-events: auto;
-        }
-
-        .model-selector-option {
-            padding: 12px 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .model-selector-option:hover {
-            background-color: rgba(0, 122, 255, 0.1);
-        }
-
-        .model-selector-option.selected {
-            background-color: rgba(0, 122, 255, 0.1);
-            border-left: 3px solid #007aff;
-        }
-
-        .model-name {
-            font-weight: 600;
-        }
-
-        .model-description {
-            font-size: 12px;
-            color: #86868b;
-            margin-top: 4px;
-        }
-
-        /* 侧边栏切换按钮 */
-        .sidebar-toggle {
-            transition: all 0.3s ease;
-            z-index: 30;
-            position: fixed;
-            left: 232px;
-            top: 30px;
-            background: white;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e5e5ea;
-        }
-
-        .sidebar.collapsed~.sidebar-toggle {
-            left: 16px;
-            transform: rotate(180deg);
-        }
-
-        /* 头部布局 */
-        .header-content {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        /* 输入区域 */
-        .input-container {
-            max-width: 800px;
-            margin: 0 auto;
-            width: calc(100% - 32px);
-            display: flex;
-            align-items: center;
-        }
-
-        /* 头部容器 */
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            padding: 0 16px;
-        }
-
-        /* 新历史记录区域样式 */
-        .history-section {
-            margin-top: 12px;
-        }
-
-        .history-section-name {
-            font-size: 12px;
-            font-weight: 600;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 8px 16px;
-            margin-top: 8px;
-        }
-
-        .history-empty-state {
-            text-align: center;
-            color: #86868b;
-            padding: 24px 16px;
-        }
-
-        .history-empty-icon {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-
-        /* 设置面板 */
-        .settings-panel {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 450px;
-            min-width: 450px;
-            max-width: 600px;
-            overflow: auto;
-            background-color: white;
-            z-index: 40;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-            border-left: 1px solid #e5e5ea;
-            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
-        }
-
-        .settings-panel.open {
+        .sidebar:not(.collapsed) {
             transform: translateX(0);
         }
 
-        .settings-header {
-            padding: 16px;
-            border-bottom: 1px solid #e5e5ea;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .main-content {
+            margin-left: 0 !important;
         }
 
-        .settings-content {
-            padding: 16px;
-            overflow-y: auto;
-            height: calc(100% - 60px);
+        #chatContainer {
+            padding: 1rem !important;
         }
 
-        .settings-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.3);
-            z-index: 35;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            backdrop-filter: blur(2px);
+        .input-container {
+            width: 100% !important;
+            padding: 0 0.75rem;
         }
 
-        .settings-overlay.open {
-            opacity: 1;
-            pointer-events: auto;
+        .message-input-container {
+            flex-direction: column;
+            gap: 0.5rem;
         }
 
-        /* 编辑名称输入框 */
-        .edit-name-input {
-            display: none;
+        #messageInput {
             width: 100%;
-            padding: 4px;
-            border: 1px solid #d2d2d7;
-            border-radius: 4px;
-            font-size: 14px;
         }
 
-        .history-item.editing .edit-name-input {
-            display: block;
-        }
-
-        .history-item.editing .history-name {
-            display: none;
-        }
-
-        /* 新建聊天按钮禁用状态 */
-        #newChatBtn.disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-
-        /* 设置表单样式 */
-        .settings-form-group {
-            margin-bottom: 16px;
-        }
-
-        .settings-label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            color: #1d1d1f;
-        }
-
-        .settings-input {
+        #sendBtn {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #d2d2d7;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.2s;
+            margin-left: 0 !important;
+            height: 44px;
         }
 
-        .settings-input:focus {
-            border-color: #007aff;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        .user-message,
+        .assistant-message {
+            max-width: 92%;
+        }
+    }
+
+    .sidebar {
+        background-color: #f5f5f7;
+        border-right: 1px solid #d2d2d7;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 250px;
+        overflow: auto;
+        z-index: 20;
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+
+    .main-content {
+        margin-left: 260px;
+        transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar.collapsed~.main-content {
+        margin-left: 0;
+    }
+
+    .history-item {
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-left-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 8px;
+        margin-bottom: 4px;
+        padding: 10px 14px;
+    }
+
+    .history-item:hover {
+        background-color: rgba(0, 122, 255, 0.08);
+        cursor: pointer;
+    }
+
+    .history-item.active {
+        background-color: rgba(0, 122, 255, 0.12);
+        border-left: 3px solid #007aff;
+        font-weight: 600;
+        cursor: pointer;
+    }
+     .history-item .history-name {
+        font-size: 13px;
+    }
+
+    .user-message {
+        background-color: #007aff;
+        color: white;
+        border-radius: 18px 18px 5px 18px;
+        cursor: pointer;
+        transition: background-color 0.25s ease, transform 0.2s ease;
+        padding: 10px 15px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-message:hover {
+        background-color: #0070e0;
+    }
+
+    .assistant-message {
+        background-color: #e9e9eb;
+        border-radius: 18px 18px 18px 5px;
+        border: 1px solid #dcdcdf;
+        padding: 10px 15px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .edit-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        justify-content: flex-end;
+        position: absolute;
+        bottom: 18px;
+        right: 12px;
+    }
+
+    .edit-button {
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.1s ease;
+    }
+
+    .edit-button:active {
+        transform: scale(0.95);
+    }
+
+    .save-button {
+        background-color: #007aff;
+        color: white;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+
+    .save-button:hover {
+        background-color: #0066cc;
+    }
+
+    .cancel-button {
+        background-color: white;
+        color: #007aff;
+        border: 1px solid #d2d2d7;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .cancel-button:hover {
+        background-color: #E5F1FF;
+    }
+
+    .edit-textarea {
+        padding: 10px 15px;
+        border-radius: 12px;
+        border: 1px solid #d2d2d7;
+        font-size: 15px;
+        max-height: 280px;
+        width: 100%;
+        box-sizing: border-box;
+        transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .edit-textarea:focus {
+        border-color: #007aff;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+        outline: none;
+    }
+
+    #messageInput {
+        background-color: #f9f9f9;
+        border-radius: 20px;
+        border: 1px solid #d2d2d7;
+        transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+        padding: 10px 16px;
+        font-size: 15px;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+        min-height: 44px;
+        resize: none;
+        overflow: hidden;
+        flex-grow: 1;
+    }
+
+    #messageInput:focus {
+        border-color: #007aff;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+        background-color: white;
+        outline: none;
+    }
+
+    #sendBtn {
+        background-color: #007aff;
+        border-radius: 50%;
+        padding: 0;
+        width: 44px;
+        height: 44px;
+        margin-left: 12px;
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+
+    #sendBtn:hover:not(:disabled) {
+        background-color: #006fe6;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+
+    #sendBtn:active:not(:disabled) {
+        transform: scale(0.9);
+        background-color: #005bb5;
+        transition-duration: 0.05s;
+        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.2);
+    }
+
+    #sendBtn:disabled {
+        background-color: #e5e5ea !important;
+        color: #b0b0b5 !important;
+        transform: scale(1);
+        opacity: 0.6 !important;
+        cursor: default;
+        box-shadow: none;
+    }
+
+    #sendBtn .fa-paper-plane {
+        display: inline-block;
+        font-size: 16px;
+    }
+
+    #sendBtn.sending .fa-paper-plane {
+        display: none;
+    }
+
+    #sendBtn.sending .sending-spinner {
+        display: inline-block;
+    }
+
+    .sending-spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
         }
 
-        .settings-textarea {
-            min-height: 120px;
-            resize: vertical;
+        100% {
+            transform: rotate(360deg);
         }
+    }
 
-        .settings-param-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
+    #confirmModal,
+    #historyModal,
+    #userLoginModal {
+        backdrop-filter: blur(5px);
+    }
 
-        .settings-param-group {
-            margin-bottom: 12px;
-        }
+    .modal-content {
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
 
-        /* 流式切换开关 */
-        .stream-toggle {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 32px;
-        }
+    .user-profile-btn {
+        background-color: #f0f0f0;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background-color 0.2s ease, transform 0.1s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
 
-        .stream-toggle input {
+    .user-profile-btn:hover {
+        background-color: #e0e0e0;
+        transform: translateY(-1px);
+    }
+
+    .user-profile-btn:active {
+        transform: scale(0.98);
+        background-color: #d0d0d0;
+    }
+
+    .user-avatar-small {
+        background-color: #e5e5ea;
+        color: #636366;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 14px;
+    }
+
+    .user-avatar-large {
+        background-color: #e5e5ea;
+        color: #636366;
+        font-size: 48px;
+        font-weight: 700;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+    }
+
+    #usernameInput {
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 16px;
+        border: 1px solid #d2d2d7;
+        transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #usernameInput:focus {
+        border-color: #007aff;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25);
+        outline: none;
+    }
+
+    #startChatBtn {
+        background-color: #007aff;
+        color: white;
+        border-radius: 10px;
+        padding: 12px 20px;
+        font-size: 17px;
+        font-weight: 600;
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+
+    #startChatBtn:hover:not(:disabled) {
+        background-color: #006fe6;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+
+    #startChatBtn:active:not(:disabled) {
+        transform: scale(0.95);
+        background-color: #005bb5;
+        transition-duration: 0.05s;
+        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.2);
+    }
+
+    #startChatBtn:disabled {
+        background-color: #e5e5ea !important;
+        color: #b0b0b5 !important;
+        cursor: default;
+        box-shadow: none;
+    }
+
+    .delete-btn {
+        color: #ff3b30;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 4px 7px;
+        border-radius: 6px;
+        background-color: rgba(255, 59, 48, 0.05);
+    }
+
+    .edit-btn {
+        color: #007aff;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 4px 7px;
+        border-radius: 6px;
+        background-color: rgba(0, 122, 255, 0.05);
+    }
+
+    .history-item:hover .edit-btn,
+    .history-item:hover .delete-btn {
+        opacity: 1;
+    }
+
+    .spinner {
+        color: #8e8e93;
+    }
+
+    @keyframes modalFadeIn {
+        0% {
             opacity: 0;
-            width: 0;
-            height: 0;
+            transform: scale(0.95);
         }
 
-        .stream-toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #e5e5ea;
-            transition: .4s;
-            border-radius: 34px;
-        }
-
-        .stream-toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 26px;
-            width: 26px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .stream-toggle input:checked+.stream-toggle-slider {
-            background-color: #34C759;
-        }
-
-        .stream-toggle input:checked+.stream-toggle-slider:before {
-            transform: translateX(28px);
-        }
-
-        .stream-toggle-text {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            font-weight: 500;
-            color: white;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
-
-        .stream-toggle-text.on {
-            left: 8px;
-            opacity: 0;
-        }
-
-        .stream-toggle-text.off {
-            right: 8px;
+        100% {
             opacity: 1;
+            transform: scale(1);
         }
+    }
 
-        .stream-toggle input:checked~.stream-toggle-text.on {
+    @keyframes modalFadeOut {
+        0% {
             opacity: 1;
+            transform: scale(1);
         }
 
-        .stream-toggle input:checked~.stream-toggle-text.off {
+        100% {
             opacity: 0;
+            transform: scale(0.95);
         }
+    }
 
-        .history-item {
-            transition: transform 0.2s ease, opacity 0.2s ease;
-            cursor: pointer;
-        }
+    .modal-enter .modal-content {
+        animation: modalFadeIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    }
 
-        .stream-toggle-tooltip {
-            position: absolute;
-            bottom: -24px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #1d1d1f;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-        }
+    .modal-exit .modal-content {
+        animation: modalFadeOut 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    }
 
-        .stream-toggle:hover .stream-toggle-tooltip {
-            opacity: 1;
-        }
-    </style>
+    #confirmModal.modal-enter,
+    #historyModal.modal-enter,
+    #confirmModal.modal-exit,
+    #historyModal.modal-exit {
+        display: flex;
+    }
+
+    .notification {
+        border-radius: 12px;
+        padding: 14px 18px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        max-width: 80%;
+        margin: 14px auto;
+        display: flex;
+        align-items: center;
+        border: 1px solid;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .notification i {
+        margin-right: 8px;
+    }
+
+    .notification.success {
+        background-color: rgba(52, 199, 89, 0.15);
+        border-color: rgba(52, 199, 89, 0.25);
+        color: #34C759;
+    }
+
+    .notification.warning {
+        background-color: rgba(255, 204, 0, 0.15);
+        border-color: rgba(255, 204, 0, 0.25);
+        color: #FFCC00;
+    }
+
+    .notification.error {
+        background-color: rgba(255, 59, 48, 0.15);
+        border-color: rgba(255, 59, 48, 0.25);
+        color: #FF3B30;
+    }
+
+    .notification.info {
+        background-color: rgba(0, 122, 255, 0.15);
+        border-color: rgba(0, 122, 255, 0.25);
+        color: #007AFF;
+    }
+
+    #chatContainer {
+        scroll-behavior: smooth;
+        padding: 16px;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.35);
+    }
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .user-avatar {
+        background-color: #007aff;
+        color: white;
+    }
+
+    .assistant-avatar {
+        background-color: #e5e5ea;
+        color: #636366;
+    }
+
+    .model-selector {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .model-selector-btn {
+        background-color: white;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        cursor: pointer;
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .model-selector-btn:hover {
+        background-color: #f5f5f7;
+    }
+
+    .model-selector-options {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        background-color: white;
+        border: 1px solid #d2d2d7;
+        border-radius: 12px;
+        width: 100%;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        z-index: 10;
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+        transform-origin: top;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+    }
+
+    .model-selector.open .model-selector-options {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    .model-selector-option {
+        padding: 12px 16px;
+        cursor: pointer;
+        transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 8px;
+        margin: 4px 8px;
+    }
+
+    .model-selector-option:hover {
+        background-color: rgba(0, 122, 255, 0.1);
+    }
+
+    .model-selector-option.selected {
+        background-color: rgba(0, 122, 255, 0.1);
+        border-left: 3px solid #007aff;
+        font-weight: 600;
+    }
+
+    .model-name {
+        font-weight: 600;
+    }
+
+    .model-description {
+        font-size: 12px;
+        color: #86868b;
+        margin-top: 4px;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .input-container {
+        max-width: 800px;
+        margin: 0 auto;
+        width: calc(100% - 28px);
+        display: flex;
+        align-items: center;
+        background-color: white;
+        padding: 12px 16px;
+    }
+
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .history-section {
+        margin-top: 12px;
+    }
+
+    .history-section-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #86868b;
+        text-transform: none;
+        letter-spacing: 0;
+        padding: 10px 14px;
+        margin-top: 8px;
+    }
+
+    .history-empty-state {
+        text-align: center;
+        color: #86868b;
+        padding: 24px 14px;
+        font-size: 14px;
+    }
+
+    .history-empty-icon {
+        font-size: 26px;
+        margin-bottom: 8px;
+    }
+
+    .settings-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 420px;
+        min-width: 420px;
+        max-width: 550px;
+        overflow: auto;
+        background-color: white;
+        z-index: 40;
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: none;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+    }
+
+    .settings-panel.open {
+        transform: translateX(0);
+    }
+
+    .settings-header {
+        padding: 20px;
+        border-bottom: 1px solid #e5e5ea;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .settings-content {
+        padding: 20px;
+        overflow-y: auto;
+        height: calc(100% - 65px);
+    }
+
+    .settings-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.35);
+        z-index: 35;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(4px);
+    }
+
+    .settings-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .edit-name-input {
+        display: none;
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #d2d2d7;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .edit-name-input:focus {
+        border-color: #007aff;
+        box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.3);
+        outline: none;
+    }
+
+    .history-item.editing .edit-name-input {
+        display: block;
+    }
+
+    .history-item.editing .history-name {
+        display: none;
+    }
+
+    #newChatBtn.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .settings-form-group {
+        margin-bottom: 20px;
+    }
+
+    .settings-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #1d1d1f;
+    }
+
+    .settings-input,
+    .settings-panel select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        font-size: 14px;
+        transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .settings-input:focus,
+    .settings-panel select:focus {
+        border-color: #007aff;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.2);
+    }
+
+    .settings-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .settings-param-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .settings-param-group {
+        margin-bottom: 12px;
+    }
+
+    .stream-toggle {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 30px;
+    }
+
+    .stream-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .stream-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e5e5ea;
+        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 30px;
+    }
+
+    .stream-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stream-toggle input:checked+.stream-toggle-slider {
+        background-color: #34C759;
+    }
+
+    .stream-toggle input:checked+.stream-toggle-slider:before {
+        transform: translateX(22px);
+    }
+
+    .stream-toggle-text {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+        pointer-events: none;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stream-toggle-text.on {
+        left: 7px;
+        opacity: 0;
+    }
+
+    .stream-toggle-text.off {
+        right: 7px;
+        opacity: 1;
+    }
+
+    .stream-toggle input:checked~.stream-toggle-text.on {
+        opacity: 1;
+    }
+
+    .stream-toggle input:checked~.stream-toggle-text.off {
+        opacity: 0;
+    }
+
+    .stream-toggle-tooltip {
+        position: absolute;
+        bottom: -24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #1d1d1f;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stream-toggle:hover .stream-toggle-tooltip {
+        opacity: 1;
+    }
+
+    .settings-panel button {
+        border-radius: 10px;
+        transition: background-color 0.2s ease, transform 0.1s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .settings-panel button:active:not(:disabled) {
+        transform: scale(0.96);
+    }
+
+    #saveSettingsBtn {
+        border-radius: 10px;
+        padding: 12px 18px;
+        font-weight: 600;
+    }
+
+    #saveSettingsBtn:hover:not(:disabled) {
+        background-color: #0056b3;
+    }
+  </style>
 </head>
 
 <body class="bg-white h-screen overflow-hidden">
-    <!-- Sidebar -->
-    <div id="sidebar" class="sidebar flex flex-col h-full">
-        <div class="p-12 border-b border-gray-200 flex justify-center items-center h-[60px]">
-            <button id="newChatBtn"
-                class="bg-white text-[#007aff] px-4 py-2 rounded-lg flex items-center space-x-2 border-2 border-[#007aff] hover:bg-[#007aff]/10 transition-colors h-[40px]">
-                <i class="fas fa-plus"></i>
-                <span>新建对话</span>
-            </button>
-        </div>
-        <div id="historyList" class="flex-1 overflow-y-auto p-2">
-            <!-- History items will be added here dynamically -->
-            <div class="history-empty-state">
-                <div class="history-empty-icon">
-                    <i class="fas fa-comments"></i>
-                </div>
-                <p>暂无对话记录</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sidebar Toggle Button -->
-    <button id="sidebarToggle" class="sidebar-toggle text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-        <i class="fas fa-chevron-left"></i>
+<div class="sidebar flex flex-col h-full" id="sidebar">
+  <div class="p-4 border-b border-gray-200 flex justify-center items-center h-[60px]">
+    <button
+        class="bg-[#007aff] text-white px-4 py-2.5 rounded-lg flex items-center space-x-2 shadow-md hover:bg-[#006fe6] transition-all duration-200 h-[40px]"
+        id="newChatBtn">
+      <i class="fas fa-plus text-sm"></i>
+      <span class="text-sm font-medium">新建对话</span>
     </button>
-
-    <!-- Main Chat Area -->
-    <div class="main-content flex flex-col h-full">
-        <!-- Header -->
-        <div class="bg-white border-b p-4">
-            <div class="header-container">
-                <div class="flex items-center gap-4">
-                    <div class="model-selector relative">
-                        <div class="model-selector-btn flex items-center justify-between min-w-[240px] bg-white border border-[#d2d2d7] rounded-[12px] px-4 py-2 cursor-pointer hover:bg-[#f5f5f7] transition-colors"
-                            id="modelSelectorBtn">
-                            <div class="flex-1">
-                                <div class="model-name font-medium" id="selectedModel">qwen3</div>
-                                <div class="model-description text-xs text-gray-500 mt-1 truncate">community-finance-qwen3</div>
-                            </div>
-                            <i class="fas fa-chevron-down text-xs text-gray-500 transition-transform duration-200"></i>
-                        </div>
-                        <div
-                            class="model-selector-options absolute z-10 mt-2 w-full bg-white border border-[#d2d2d7] rounded-[12px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] py-1 transition-all duration-200 opacity-0 scale-95 origin-top">
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="qwen3">
-                                <div class="model-name font-medium">qwen3</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-qwen3</div>
-                            </div>
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="qwen2">
-                                <div class="model-name font-medium">qwen2</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-qwen-72b</div>
-                            </div>
-                            <div class="model-selector-option px-4 py-2 hover:bg-gray-100 cursor-pointer transition-colors" data-value="deepseek">
-                                <div class="model-name font-medium">deepseek</div>
-                                <div class="model-description text-xs text-gray-500 mt-1">community-finance-ai</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <button id="settingsBtn" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-200 transition-colors">
-                    <i class="fas fa-cog"></i>
-                    <span>对话设置</span>
-                </button>
-            </div>
+  </div>
+  <div class="flex-1 overflow-y-auto p-2.5" id="historyList">
+  </div>
+</div>
+<div class="main-content flex flex-col h-full">
+  <div class="bg-white border-b p-4">
+    <div class="header-container">
+      <div class="flex items-center gap-3">
+        <button aria-label="Toggle sidebar" class="user-profile-btn flex items-center justify-center h-[40px] w-[40px] p-0" id="sidebarToggleBtn">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+        <button class="user-profile-btn flex items-center space-x-2 transition-colors h-[40px]" id="settingsBtn">
+          <i class="fas fa-cog text-lg"></i>
+          <span class="hidden md:inline-block text-sm font-medium">对话设置</span>
+        </button>
+      </div>
+      <div class="flex-1 text-center px-3">
+        <h2 class="text-lg font-semibold text-gray-800 truncate" id="chatTitle">新对话</h2>
+      </div>
+      <button class="user-profile-btn flex items-center space-x-2 h-[40px]" id="userProfileBtn">
+        <div class="user-avatar-small">
+          <i class="fas fa-user"></i>
         </div>
-
-        <!-- Chat Messages -->
-        <div id="chatContainer" class="flex-1 overflow-y-auto p-16 space-y-4">
-            <!-- Messages will be added here dynamically -->
-            <div class="text-center text-gray-400 mt-16">
-                <i class="fas fa-comment-dots text-4xl mb-4"></i>
-                <p class="text-xl font-light">开始新的对话</p>
-            </div>
-        </div>
-
-        <!-- Input Area -->
-        <div class="bg-white border-t p-4">
-            <div class="input-container">
-                <textarea id="messageInput"
-                    class="flex-1 w-full bg-[#f5f5f7] rounded-[16px] border border-[#e5e5ea] transition-all duration-300 p-3 text-[15px] shadow-[0_1px_3px_rgba(0,0,0,0.05)] focus:border-[#007aff] focus:shadow-[0_0_0_2px_rgba(0,122,255,0.2)] focus:outline-none"
-                    rows="1"></textarea>
-                <button id="sendBtn" class="text-white p-3 disabled:opacity-50">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-        </div>
+        <span class="font-medium text-sm" id="currentUsername"></span>
+      </button>
     </div>
-
-    <!-- Confirmation Modal -->
-    <div id="confirmModal" class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm">
-        <div class="modal-content bg-white rounded-xl p-6 max-w-sm w-full mx-4">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">删除对话</h3>
-                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <p class="mb-6 text-gray-600">此对话将被永久删除，该操作不可撤销。</p>
-            <div class="flex justify-end space-x-3">
-                <button id="cancelDeleteBtn" class="px-4 py-2 text-[#007aff] hover:bg-[#007aff]/10 rounded-lg transition-colors">
-                    取消
-                </button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-[#ff3b30] text-white rounded-lg hover:bg-[#ff3b30]/90 transition-colors">
-                    删除
-                </button>
-            </div>
-        </div>
+  </div>
+  <div class="flex-1 overflow-y-auto p-4 space-y-4" id="chatContainer">
+  </div>
+  <div class="bg-white border-t">
+    <div class="input-container">
+        <textarea class="flex-1 w-full transition-all duration-300 text-[15px] focus:outline-none"
+                  id="messageInput" rows="1"></textarea>
+      <button class="text-white disabled:opacity-50 relative" id="sendBtn">
+        <i class="fas fa-paper-plane"></i>
+        <span class="sending-spinner"></span>
+      </button>
     </div>
-
-    <!-- Settings Panel -->
-    <div id="settingsPanel" class="settings-panel">
-        <div class="settings-header">
-            <h3 class="text-lg font-semibold">对话设置</h3>
-            <div class="flex items-center gap-4">
-                <button id="toggleHistoryBtn" class="text-xs text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-history mr-1"></i>修改记录
-                </button>
-                <button id="closeSettingsBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-        <div class="settings-content">
-
-            <div class="mb-6">
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-sm text-gray-500 mb-1">对话模型</label>
-                        <select id="modelSelect" class="w-full p-2 border rounded">
-                            <option>qwen3</option>
-                            <option>qwen2</option>
-                            <option>deepseek</option>
-                        </select>
-                    </div>
-                    <div class="settings-form-group">
-                        <label class="settings-label">系统指令</label>
-                        <textarea id="systemInstructionInput" class="settings-input settings-textarea" rows="10" placeholder="你是一个有帮助的助手..."></textarea>
-                    </div>
-                    <div class="settings-form-group">
-                        <label class="settings-label">流式响应
-                            <span class="text-sm text-gray-500 ml-2">控制是否启用流式响应模式</span>
-                        </label>
-                        <label class="stream-toggle">
-                            <input type="checkbox" id="streamingToggle">
-                            <span class="stream-toggle-slider"></span>
-                            <span class="stream-toggle-text on">开</span>
-                            <span class="stream-toggle-text off">关</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                <h4 class="font-medium mb-3">API 设置</h4>
-                <div class="space-y-3">
-                    <div class="settings-form-group">
-                        <label class="settings-label">流式接口地址</label>
-                        <input type="text" id="streamingEndpointInput" class="settings-input" placeholder="${DEFAULT_CHAT_SETTINGS.streamingEndpoint}">
-                    </div>
-                    <div class="settings-form-group">
-                        <label class="settings-label">非流式接口地址</label>
-                        <input type="text" id="nonStreamingEndpointInput" class="settings-input" placeholder="${DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint}">
-                    </div>
-                </div>
-
-                <h4 class="font-medium mb-3 mt-6">模型参数</h4>
-                <div class="settings-param-grid">
-                    <div class="settings-param-group">
-                        <label class="settings-label">温度</label>
-                        <input type="text" id="temperatureInput" class="settings-input" value="0.7" placeholder="0.0 - 1.0">
-                        <p class="text-xs text-gray-500 mt-1">控制随机性 (0=确定性)</p>
-                    </div>
-                    <div class="settings-param-group">
-                        <label class="settings-label">Top P</label>
-                        <input type="text" id="topPInput" class="settings-input" value="1.0" placeholder="0.0 - 1.0">
-                        <p class="text-xs text-gray-500 mt-1">核心采样阈值</p>
-                    </div>
-                    <div class="settings-param-group">
-                        <label class="settings-label">Top K</label>
-                        <input type="text" id="topKInput" class="settings-input" value="50" placeholder="1 - 100">
-                        <p class="text-xs text-gray-500 mt-1">限制为前 K 个 token</p>
-                    </div>
-                    <div class="settings-param-group">
-                        <label class="settings-label">Repetition Penalty</label>
-                        <input type="text" id="repetitionPenaltyInput" class="settings-input" value="0.0" placeholder="-2.0 - 2.0">
-                        <p class="text-xs text-gray-500 mt-1">惩罚重复的 token</p>
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <button id="saveSettingsBtn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        保存
-                    </button>
-                </div>
-            </div>
-        </div>
+  </div>
+</div>
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50" id="confirmModal">
+  <div class="modal-content bg-white p-6 max-w-sm w-full mx-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold">删除对话</h3>
+      <button class="text-gray-600 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-200" id="closeModalBtn">
+        <i class="fas fa-times text-md"></i>
+      </button>
     </div>
-    <div id="settingsOverlay" class="settings-overlay"></div>
-
-    <!-- 修改记录 Modal -->
-    <div id="historyModal" class="fixed inset-0 bg-black/30 flex items-center justify-center hidden z-50 backdrop-blur-sm">
-        <div class="modal-content bg-white rounded-xl p-6 w-[600px] max-h-[80vh] flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">修改记录</h3>
-                <button id="closeHistoryModalBtn" class="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="flex-1 overflow-y-auto">
-                <div class="mb-2">
-                    <span class="text-sm font-medium">历史版本</span>
-                </div>
-                <div id="chatChangeList" class="space-y-2 max-h-[40vh] overflow-y-auto">
-                    <div class="text-center text-gray-400 py-4 text-sm">
-                        暂无修改记录
-                    </div>
-                </div>
-                <div id="historyPreview" class="hidden mt-4 bg-white rounded-lg p-4 border border-gray-200">
-                    <h5 class="font-medium mb-2">版本详情</h5>
-                    <div id="previewContent" class="text-sm text-gray-700">
-                        <!-- 预览内容将在这里显示 -->
-                    </div>
-                    <div id="diffContent" class="mt-3 text-xs bg-gray-50 p-2 rounded hidden">
-                        <div class="grid grid-cols-2 gap-2">
-                            <div class="overflow-auto max-h-96">
-                                <div class="text-red-500 mb-1">旧值</div>
-                                <div class="text-xs text-gray-500 mb-2" id="oldValueTime"></div>
-                                <div id="oldValue" class="font-mono text-sm bg-gray-50 p-2 rounded">
-                                    <div class="flex">
-                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right"></div>
-                                        <div class="pl-2 break-all whitespace-pre-wrap"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="overflow-auto max-h-96">
-                                <div class="text-green-500 mb-1">新值</div>
-                                <div class="text-xs text-gray-500 mb-2" id="newValueTime"></div>
-                                <div id="newValue" class="font-mono text-sm bg-gray-50 p-2 rounded">
-                                    <div class="flex">
-                                        <div class="text-gray-400 pr-2 select-none border-r border-gray-200 w-8 text-right"></div>
-                                        <div class="pl-2 break-all whitespace-pre-wrap"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <p class="mb-6 text-gray-700 text-[15px]">此对话将被永久删除，该操作不可撤销。</p>
+    <div class="flex justify-end space-x-3">
+      <button class="px-4 py-2 text-[#007aff] hover:bg-[#007aff]/10 rounded-lg transition-colors font-medium text-[15px]" id="cancelDeleteBtn">取消</button>
+      <button class="px-4 py-2 bg-[#ff3b30] text-white rounded-lg hover:bg-[#ff3b30]/90 transition-colors font-medium text-[15px]" id="confirmDeleteBtn">删除</button>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const sendBtn = document.getElementById('sendBtn');
-
-            sendBtn.addEventListener('click', function () {
-                // 添加active类用于脉冲动画
-                this.classList.add('active');
-
-                // 创建波浪元素
-                const waveContainer = document.createElement('div');
-                waveContainer.className = 'wave-container';
-
-                for (let i = 0; i < 5; i++) {
-                    const wave = document.createElement('div');
-                    wave.className = 'siri-wave';
-                    wave.style.animationDelay = `${i * 0.1}s`;
-                    waveContainer.appendChild(wave);
-                }
-
-                this.appendChild(waveContainer);
-
-                // 动画完成后移除
-                setTimeout(() => {
-                    this.classList.remove('active');
-                    waveContainer.remove();
-                }, 800);
-            });
-        });
-        function updateSliderValue(e) {
-            const target = e.target;
-            const valueDisplay = target.nextElementSibling?.querySelector('.value-display');
-            if (valueDisplay) {
-                valueDisplay.textContent = target.value;
-            }
-        }
-
-
-        // DOM元素
-        const sidebar = document.getElementById('sidebar');
-        const historyList = document.getElementById('historyList');
-        const chatContainer = document.getElementById('chatContainer');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const newChatBtn = document.getElementById('newChatBtn');
-        const sidebarToggle = document.getElementById('sidebarToggle');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const loadingSpinner = document.getElementById('loadingSpinner');
-        const confirmModal = document.getElementById('confirmModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        const modelSelectorBtn = document.getElementById('modelSelectorBtn');
-        const selectedModel = document.getElementById('selectedModel');
-        const modelOptions = document.querySelectorAll('.model-selector-option');
-        const modelSelector = document.querySelector('.model-selector');
-        const settingsPanel = document.getElementById('settingsPanel');
-        const settingsOverlay = document.getElementById('settingsOverlay');
-        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const modelInfoPanel = document.getElementById('modelInfoPanel');
-        const modelInfoOverlay = document.getElementById('modelInfoOverlay');
-        const closeModelInfoBtn = document.getElementById('closeModelInfoBtn');
-        const streamToggle = document.getElementById('streamingToggle');
-
-        // Settings form elements
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const compactModeToggle = document.getElementById('compactModeToggle');
-        const systemInstructionInput = document.getElementById('systemInstructionInput');
-        const temperatureInput = document.getElementById('temperatureInput');
-        const topPInput = document.getElementById('topPInput');
-        const topKInput = document.getElementById('topKInput');
-        const repetitionPenaltyInput = document.getElementById('repetitionPenaltyInput');
-        const modelSelect = document.getElementById('modelSelect');
-        const autoScrollToggle = document.getElementById('autoScrollToggle');
-
-
-        // 状态
-        let currentChatId = null;
-        let isWaitingForResponse = false;
-        let chatToDelete = null;
-        let isNewChat = false;
-        let selectedHistoryVersion = null;
-
-        // 聊天数据结构 - 直接使用数组
-        let chats = JSON.parse(localStorage.getItem('chats')) || [];
-
-        // 模型信息
-        const modelInfo = {
-            'qwen3': {
-                name: 'qwen3',
-                description: "community-finance-qwen3"
-            },
-            'qwen2': {
-                name: 'qwen2',
-                description: "community-finance-qwen-72b"
-            },
-            'deepseek': {
-                name: 'deepseek',
-                description: "community-finance-ai"
-            }
-        };
-
-        // 保存聊天数据
-        function saveChats() {
-            localStorage.setItem('chats', JSON.stringify(chats));
-        }
-
-        // 获取当前聊天
-        function getCurrentChat() {
-            if (currentChatId) {
-                const chat = chats.find(c => c.id === currentChatId);
-                if (!chat) {
-                    const newChat = {
-                        id: currentChatId,
-                        name: "新对话",
-                        settings: JSON.parse(JSON.stringify(DEFAULT_CHAT_SETTINGS)),
-                        messages: [],
-                        createdAt: new Date().toISOString()
-                    };
-                    chats.push(newChat);
-                    return newChat;
-                }
-                return chat;
-            }
-            return null;
-        }
-
-        // 初始化应用
-        function init() {
-            try {
-                // 初始化当前模型
-                currentModel = DEFAULT_CHAT_SETTINGS.model;
-
-                // 检查必需元素是否存在
-                const requiredElements = [
-                    'sidebar', 'historyList', 'chatContainer', 'messageInput',
-                    'sendBtn', 'newChatBtn', 'sidebarToggle'
-                ];
-
-                for (const id of requiredElements) {
-                    if (!document.getElementById(id)) {
-                        console.error(`Required element not found: ${id}`);
-                        return;
-                    }
-                }
-
-                // 加载设置
-                loadSettings();
-            } catch (error) {
-                console.error('Initialization error:', error);
-                return;
-            }
-
-            renderHistory();
-            if (chats.length > 0) {
-                loadChat(chats[0].id);
-            } else {
-                createNewChat();
-            }
-
-            // 初始化流式切换开关
-            updateStreamToggleState();
-            streamToggle.addEventListener('change', updateStreamToggleState);
-
-            // 事件监听器
-            sendBtn.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !isWaitingForResponse) {
-                    sendMessage();
-                }
-            });
-            newChatBtn.addEventListener('click', createNewChat);
-
-            // 侧边栏切换
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-            });
-
-            // 设置面板事件
-            settingsBtn.addEventListener('click', showSettingsPanel);
-            closeSettingsBtn.addEventListener('click', hideSettingsPanel);
-            settingsOverlay.addEventListener('click', hideSettingsPanel);
-
-            if (closeModelInfoBtn) {
-                closeModelInfoBtn.addEventListener('click', hideModelInfoPanel);
-            }
-            if (modelInfoOverlay) {
-                modelInfoOverlay.addEventListener('click', hideModelInfoPanel);
-            }
-
-            // 模态框事件监听器
-            closeModalBtn.addEventListener('click', hideModal);
-            cancelDeleteBtn.addEventListener('click', hideModal);
-            confirmDeleteBtn.addEventListener('click', confirmDelete);
-
-            // 模型选择器事件
-            modelSelectorBtn.addEventListener('click', toggleModelSelector);
-            modelOptions.forEach(option => {
-                option.addEventListener('click', () => {
-                    selectModel(option.dataset.value);
-                });
-            });
-
-            // 点击外部时关闭模型选择器
-            document.addEventListener('click', (e) => {
-                const isModelSelector = e.target.closest('.model-selector');
-                const isModelSelectorBtn = e.target === modelSelectorBtn;
-
-                if (!isModelSelector && !isModelSelectorBtn) {
-                    modelSelector.classList.remove('open');
-                    const chevron = modelSelectorBtn.querySelector('i');
-                    chevron.classList.remove('rotate-180');
-                }
-            });
-
-            // 保存设置按钮事件监听器
-            document.getElementById('saveSettingsBtn')?.addEventListener('click', saveSettings);
-        }
-
-        // 从当前对话加载设置
-        function loadSettings() {
-            const chat = getCurrentChat();
-            if (chat) {
-                // 从当前聊天加载设置
-                systemInstructionInput.value = chat.settings.systemInstruction || DEFAULT_CHAT_SETTINGS.systemInstruction;
-                temperatureInput.value = chat.settings.temperature || DEFAULT_CHAT_SETTINGS.temperature;
-                topPInput.value = chat.settings.topP || DEFAULT_CHAT_SETTINGS.topP;
-                topKInput.value = chat.settings.topK || DEFAULT_CHAT_SETTINGS.topK;
-                repetitionPenaltyInput.value = chat.settings.repetitionPenalty || DEFAULT_CHAT_SETTINGS.repetitionPenalty;
-                modelSelect.value = chat.settings.model || DEFAULT_CHAT_SETTINGS.model;
-                streamingToggle.checked = chat.settings.streaming || DEFAULT_CHAT_SETTINGS.streaming;
-                streamingEndpointInput.value = chat.settings.streamingEndpoint || DEFAULT_CHAT_SETTINGS.streamingEndpoint;
-                nonStreamingEndpointInput.value = chat.settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint;
-
-                // 动态设置placeholder
-                streamingEndpointInput.placeholder = chat.settings.streamingEndpoint || DEFAULT_CHAT_SETTINGS.streamingEndpoint;
-                nonStreamingEndpointInput.placeholder = chat.settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint;
-
-                // 更新流式切换状态
-                streamToggle.checked = chat.settings.streaming;
-                updateStreamToggleState();
-
-                // 更新当前模型选择
-                currentModel = chat.settings.model;
-                selectedModel.textContent = currentModel;
-                const modelDesc = modelSelectorBtn.querySelector('.model-description');
-                modelDesc.textContent = modelInfo[currentModel]?.description || "";
-            }
-        }
-
-        // 保存设置到当前对话
-        function saveSettings() {
-            const chat = getCurrentChat();
-            if (chat) {
-                // 保存到当前聊天设置
-                chat.settings = {
-                    model: modelSelect.value,
-                    streaming: streamToggle.checked,  // 使用主开关状态
-                    systemInstruction: systemInstructionInput.value,
-                    temperature: parseFloat(temperatureInput.value) || 0.9,
-                    topP: parseFloat(topPInput.value) || 0.8,
-                    topK: parseInt(topKInput.value) || 15,
-                    repetitionPenalty: parseFloat(frequencyPenaltyInput.value) || 1.0
-                };
-
-                // 更新当前模型和流式状态
-                currentModel = chat.settings.model;
-                selectedModel.textContent = currentModel;
-                streamToggle.checked = chat.settings.streaming;
-                updateStreamToggleState();
-
-                saveChats();
-            }
-        }
-
-        // 更新流式切换状态UI显示
-        function updateStreamToggleState() {
-            // 仅更新UI状态，不保存到本地存储
-            const isStreaming = streamToggle.checked;
-
-            // 更新设置面板中的开关状态
-            if (document.getElementById('streamingToggle')) {
-                document.getElementById('streamingToggle').checked = isStreaming;
-            }
-        }
-
-        function hideModelInfoPanel() {
-            modelInfoPanel.classList.remove('open');
-            modelInfoOverlay.classList.remove('open');
-            document.body.style.overflow = '';
-        }
-
-        // 设置面板功能
-        function showSettingsPanel() {
-            // 确保有当前对话
-            if (!currentChatId) return;
-
-            // 加载当前对话设置
-            loadSettings();
-
-            settingsPanel.classList.add('open');
-            settingsOverlay.classList.add('open');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function hideSettingsPanel() {
-            settingsPanel.classList.remove('open');
-            settingsOverlay.classList.remove('open');
-            document.body.style.overflow = '';
-        }
-
-        // 模型选择器功能
-        function toggleModelSelector(e) {
-            e.stopPropagation();
-            const isOpening = !modelSelector.classList.contains('open');
-            modelSelector.classList.toggle('open');
-
-            // Toggle chevron rotation
-            const chevron = modelSelectorBtn.querySelector('i');
-            chevron.classList.toggle('rotate-180');
-
-            // If opening the selector, ensure current model is selected
-            if (isOpening) {
-                document.querySelectorAll('.model-selector-option').forEach(option => {
-                    option.classList.toggle('selected', option.dataset.value === currentModel);
-                });
-            }
-        }
-
-        function selectModel(model) {
-            currentModel = model;
-            selectedModel.textContent = model;
-
-            // Update model description with defensive check
-            const modelDesc = modelSelectorBtn.querySelector('.model-description');
-            modelDesc.textContent = modelInfo[model]?.description || '';
-
-            modelSelector.classList.remove('open');
-
-            // Reset chevron rotation
-            const chevron = modelSelectorBtn.querySelector('i');
-            chevron.classList.remove('rotate-180');
-
-            // Update selected state
-            document.querySelectorAll('.model-selector-option').forEach(option => {
-                option.classList.toggle('selected', option.dataset.value === model);
-            });
-
-            // Update current chat model if exists
-            if (currentChatId) {
-                const chat = chats.find(c => c.id === currentChatId);
-                if (chat) {
-                    chat.settings.model = model;
-                    saveChats();
-                }
-            }
-        }
-
-        // 模态框功能
-        function showModal(chatId, onConfirm) {
-            chatToDelete = chatId;
-            confirmModal.classList.remove('hidden');
-        }
-
-        function hideModal() {
-            confirmModal.classList.add('hidden');
-            chatToDelete = null;
-        }
-
-        function confirmDelete() {
-            if (!chatToDelete) {
-                hideModal();
-                return;
-            }
-
-            // Delete the chat
-            chats = chats.filter(chat => chat.id !== chatToDelete);
-            saveChats();
-
-            // If we deleted the current chat, load another one or create new
-            if (currentChatId === chatToDelete) {
-                if (chats.length > 0) {
-                    loadChat(chats[0].id);
-                } else {
-                    createNewChat();
-                }
-            }
-
-            // Hide modal first
-            hideModal();
-
-            // Execute callback after modal is hidden
-            if (typeof onConfirm === 'function') {
-                setTimeout(() => {
-                    onConfirm();
-                }, 1000); // 1 second delay to ensure modal is fully hidden and user sees animation
-            }
-
-            saveChats();
-            renderHistory();
-            hideModal();
-        }
-
-        // 创建新对话
-        function createNewChat() {
-            const now = new Date();
-            const chatId = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(now.getMilliseconds()).padStart(3, '0')}`;
-            const newChat = {
-                id: chatId,
-                name: "新对话",
-                settings: JSON.parse(JSON.stringify(DEFAULT_CHAT_SETTINGS)),
-                messages: [],
-                createdAt: new Date().toISOString()
-            };
-
-            chats.unshift(newChat);
-            currentChatId = chatId;
-            saveChats();
-
-            // Initialize stream toggle from chat settings
-            streamToggle.checked = newChat.settings.streaming;
-            updateStreamToggleState();
-
-            renderHistory();
-            loadChat(newChat.id);
-            messageInput.focus();
-        }
-
-        // 加载对话
-        function loadChat(chatId) {
-            const chat = chats.find(c => c.id === chatId);
-            if (!chat) return;
-
-            currentChatId = chatId;
-            currentModel = chat.settings.model || "qwen3";
-            selectedModel.textContent = currentModel;
-
-            // Update model description with defensive check
-            const modelDesc = modelSelectorBtn.querySelector('.model-description');
-            modelDesc.textContent = modelInfo[currentModel]?.description || '';
-
-            // Update model selector options
-            document.querySelectorAll('.model-selector-option').forEach(option => {
-                option.classList.toggle('selected', option.dataset.value === currentModel);
-            });
-
-            // Initialize stream toggle from chat settings
-            streamToggle.checked = chat.settings.streaming;
-            updateStreamToggleState();
-
-            // Ensure settings panel toggle matches chat settings
-            streamingToggle.checked = chat.settings.streaming;
-
-            renderChat(chat.messages);
-
-            // Update active state in history
-            document.querySelectorAll('.history-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.chatId === chatId);
-            });
-
-            // Reset new chat flag
-            isNewChat = chat.messages.length === 0;
-        }
-
-        // Save chat data to localStorage
-        function saveChats() {
-            localStorage.setItem('chats', JSON.stringify(chats));
-        }
-
-        // 渲染聊天消息
-        function renderChat(messages) {
-            // 添加重新发送按钮事件监听
-            setTimeout(() => {
-                document.querySelectorAll('.resend-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        const msgIndex = parseInt(btn.dataset.msgIndex);
-                        resendMessage(msgIndex);
-                    });
-                });
-            }, 0);
-            chatContainer.innerHTML = '';
-
-            if (messages.length === 0) {
-                chatContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                    <i class="fas fa-comment-dots text-4xl mb-4"></i>
-                    <p class="text-xl font-light">开始新的对话</p>
+  </div>
+</div>
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50" id="userLoginModal">
+  <div class="modal-content bg-white p-8 max-w-md w-full mx-4 text-center">
+    <div class="user-avatar-large mx-auto mb-6">
+      <i class="fas fa-user"></i>
+    </div>
+    <h2 class="text-xl font-semibold mb-5 text-gray-800">输入你的用户名</h2>
+    <input class="w-full mb-6 text-center text-lg" id="usernameInput" placeholder="例如：张三" type="text">
+    <button class="w-full" id="startChatBtn">
+      开始聊天
+    </button>
+  </div>
+</div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-header">
+    <h3 class="text-lg font-semibold">对话设置</h3>
+    <div class="flex items-center gap-3">
+      <button
+          class="text-sm text-gray-600 hover:text-gray-800 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+          id="toggleHistoryBtn">
+        <i class="fas fa-history mr-1.5"></i>修改记录
+      </button>
+      <button class="text-gray-600 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-100 transition-colors" id="closeSettingsBtn">
+        <i class="fas fa-times text-md"></i>
+      </button>
+    </div>
+  </div>
+  <div class="settings-content">
+    <div class="mb-6">
+      <div class="space-y-4">
+        <div class="model-selector relative w-full">
+          <label class="settings-label">对话模型</label>
+          <div
+              class="model-selector-btn flex items-center justify-between w-full bg-white border border-[#d2d2d7] rounded-[10px] px-3.5 py-2.5 cursor-pointer hover:bg-[#f5f5f7] transition-colors"
+              id="modelSelectorBtn">
+            <div class="flex-1">
+              <div class="model-name font-medium text-sm" id="selectedModel">community-finance-qwen3</div>
+              <div class="model-description text-xs text-gray-500 mt-1">Qwen3</div>
+            </div>
+            <i class="fas fa-chevron-down text-sm text-gray-500 transition-transform duration-200"></i>
+          </div>
+          <div
+              class="model-selector-options absolute z-10 mt-2 w-full bg-white border border-[#d2d2d7] rounded-[10px] shadow-[0_5px_14px_rgba(0,0,0,0.1)] py-1 transition-all duration-200 opacity-0 scale-95 origin-top">
+            <div class="model-selector-option" data-value="community-finance-qwen3">
+              <div class="model-name font-medium text-sm">community-finance-qwen3</div>
+              <div class="model-description text-xs text-gray-500 mt-1">Qwen3</div>
+            </div>
+            <div class="model-selector-option" data-value="community-finance-qwen-72b">
+              <div class="model-name font-medium text-sm">community-finance-qwen-72b</div>
+              <div class="model-description text-xs text-gray-500 mt-1">PnganGPT</div>
+            </div>
+            <div class="model-selector-option" data-value="community-finance-ai">
+              <div class="model-name font-medium text-sm">community-finance-ai</div>
+              <div class="model-description text-xs text-gray-500 mt-1">DeepSeek R1 32B</div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-form-group">
+          <label class="settings-label">系统指令</label>
+          <textarea class="settings-input settings-textarea" id="systemInstructionInput" rows="5"></textarea>
+        </div>
+        <div class="settings-form-group">
+          <div class="flex items-center justify-between">
+            <label class="settings-label mb-0">流式响应
+              <span class="text-xs text-gray-500 ml-2">控制是否启用流式响应模式</span>
+            </label>
+            <label class="stream-toggle">
+              <input id="streamingToggle" type="checkbox">
+              <span class="stream-toggle-slider"></span>
+              <span class="stream-toggle-text on">开</span>
+              <span class="stream-toggle-text off">关</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mb-6">
+      <h4 class="font-medium mb-3 text-[15px]">API 设置</h4>
+      <div class="space-y-4">
+        <div class="settings-form-group">
+          <label class="settings-label">流式接口地址</label>
+          <input class="settings-input" id="streamingEndpointInput" type="text">
+        </div>
+        <div class="settings-form-group">
+          <label class="settings-label">非流式接口地址</label>
+          <input class="settings-input" id="nonStreamingEndpointInput" type="text">
+        </div>
+      </div>
+      <h4 class="font-medium mb-3 mt-6 text-[15px]">模型参数</h4>
+      <div class="settings-param-grid">
+        <div class="settings-param-group">
+          <label class="settings-label">温度</label>
+          <input class="settings-input" id="temperatureInput" placeholder="0.0 - 1.0" type="text"
+                 value="0.7">
+          <p class="text-xs text-gray-500 mt-1">控制随机性 (0=确定性)</p>
+        </div>
+        <div class="settings-param-group">
+          <label class="settings-label">Top P</label>
+          <input class="settings-input" id="topPInput" placeholder="0.0 - 1.0" type="text" value="1.0">
+          <p class="text-xs text-gray-500 mt-1">核心采样阈值</p>
+        </div>
+        <div class="settings-param-group">
+          <label class="settings-label">Top K</label>
+          <input class="settings-input" id="topKInput" placeholder="1 - 100" type="text" value="50">
+          <p class="text-xs text-gray-500 mt-1">限制为前 K 个 token</p>
+        </div>
+        <div class="settings-param-group">
+          <label class="settings-label">Repetition Penalty</label>
+          <input class="settings-input" id="repetitionPenaltyInput" placeholder="-2.0 - 2.0" type="text"
+                 value="0.0">
+          <p class="text-xs text-gray-500 mt-1">惩罚重复的 token</p>
+        </div>
+      </div>
+      <div class="mt-6">
+        <button class="w-full bg-blue-600 text-white hover:bg-blue-700 transition-colors" id="saveSettingsBtn">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="settings-overlay" id="settingsOverlay"></div>
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50" id="historyModal">
+  <div class="modal-content bg-white p-5 w-[600px] max-h-[85vh] flex flex-col">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold">修改记录</h3>
+      <button class="text-gray-600 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-200" id="closeHistoryModalBtn"><i class="fas fa-times text-md"></i></button>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <div class="mb-2"><span class="text-sm font-medium">历史版本</span></div>
+      <div class="space-y-2 max-h-[45vh] overflow-y-auto" id="chatChangeList">
+      </div>
+      <div class="hidden mt-4 bg-white rounded-lg p-3 border border-gray-200" id="historyPreview">
+        <h5 class="font-medium mb-2 text-sm">版本详情</h5>
+        <div class="text-sm text-gray-700" id="previewContent"></div>
+        <div class="mt-3 text-xs bg-gray-50 p-1 rounded hidden" id="diffContent">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="overflow-auto max-h-96">
+              <div class="text-red-500 mb-1 text-sm">旧值</div>
+              <div class="text-xs text-gray-500 mb-2" id="oldValueTime"></div>
+              <div class="font-mono text-xs bg-gray-100 p-1.5 rounded" id="oldValue">
+                <div class="flex">
+                  <div class="text-gray-400 pr-2 select-none border-r border-gray-300 w-8 text-right"></div>
+                  <div class="pl-2 break-all whitespace-pre-wrap"></div>
                 </div>
-                `;
-                return;
-            }
-
-            messages.forEach(msg => {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = `flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} items-start mb-4 space-x-3`;
-
-                if (msg.role === 'assistant') {
-                    // Assistant message with avatar on left
-                    messageDiv.innerHTML = `
-                        <div class="flex flex-col items-center">
-                            <div class="avatar assistant-avatar">
-                                <i class="fas fa-robot"></i>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">${msg.model || 'Assistant'}</div>
-                        </div>
-                        <div class="max-w-[75%]">
-                            <div class="p-4 assistant-message">${marked.parse(msg.content)}</div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
-                                ${msg.elapsedTime ? ` · 耗时 ${msg.elapsedTime}ms` : ''}
-                                <span class="ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                                    ${msg.streaming ? '流式' : '非流式'}
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // User message with avatar on right (swapped positions)
-                    messageDiv.innerHTML = `
-                        <div class="max-w-[75%] relative">
-                            <div class="p-4 user-message">${marked.parse(msg.content)}</div>
-                            <div class="text-xs text-gray-500 mt-1 text-right">
-                                ${msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}
-                                <button class="resend-btn ml-2 text-blue-600 opacity-0 hover:opacity-100 transition-opacity" 
-                                    data-msg-index="${messages.indexOf(msg)}">
-                                    <i class="fas fa-redo mr-1"></i>重新发送
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex flex-col items-center">
-                            <div class="avatar user-avatar">
-                                <i class="fas fa-user"></i>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">You</div>
-                        </div>
-                    `;
-                }
-
-                chatContainer.appendChild(messageDiv);
-            });
-
-        }
-
-        // 按时间段分组对话
-        function groupChatsByTime(chats) {
-            const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const last7Days = new Date(today);
-            last7Days.setDate(last7Days.getDate() - 7);
-            const last30Days = new Date(today);
-            last30Days.setDate(last30Days.getDate() - 30);
-
-            const grouped = {
-                today: [],
-                yesterday: [],
-                last7Days: [],
-                last30Days: [],
-                older: []
-            };
-
-            chats.forEach(chat => {
-                const chatDate = new Date(chat.createdAt);
-
-                if (chatDate >= today) {
-                    grouped.today.push(chat);
-                } else if (chatDate >= yesterday) {
-                    grouped.yesterday.push(chat);
-                } else if (chatDate >= last7Days) {
-                    grouped.last7Days.push(chat);
-                } else if (chatDate >= last30Days) {
-                    grouped.last30Days.push(chat);
-                } else {
-                    grouped.older.push(chat);
-                }
-            });
-
-            return grouped;
-        }
-
-        // 渲染带时间分组的历史列表
-        function renderHistory() {
-            historyList.innerHTML = '';
-
-            // 按创建时间倒序排列（最新的在前）
-            const sortedChats = [...chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            if (!sortedChats || sortedChats.length === 0) {
-                historyList.innerHTML = `
-                    <div class="history-empty-state">
-                        <div class="history-empty-icon">
-                            <i class="fas fa-comments"></i>
-                        </div>
-                        <p>暂无对话记录</p>
-                    </div>
-                `;
-                return;
-            }
-
-            const groupedChats = groupChatsByTime(chats);
-
-            // Helper function to render a section
-            const renderSection = (name, chats) => {
-                if (chats.length === 0) return '';
-
-                const section = document.createElement('div');
-                section.className = 'history-section';
-
-                const nameElement = document.createElement('div');
-                nameElement.className = 'history-section-name';
-                nameElement.textContent = name;
-                section.appendChild(nameElement);
-
-                chats.forEach(chat => {
-                    const historyItem = document.createElement('div');
-                    historyItem.className = `history-item p-3 rounded-lg flex justify-between items-center group ${chat.id === currentChatId ? 'active' : ''}`;
-                    historyItem.dataset.chatId = chat.id;
-
-                    // Format time as "HH:MM"
-                    const date = new Date(chat.createdAt);
-                    const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                    historyItem.innerHTML = `
-                        <div class="flex-1 min-w-0">
-                            <div class="history-name truncate text-sm" title="${chat.name}">${chat.name}</div>
-                            <input type="text" class="edit-name-input" value="${chat.name}" maxlength="50">
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">${timeString}</span>
-                            <button class="edit-btn p-1 rounded-full hover:bg-gray-200 transition-colors">
-                                <i class="fas fa-pencil-alt text-xs"></i>
-                            </button>
-                            <button class="delete-btn p-1 rounded-full hover:bg-gray-200 transition-colors">
-                                <i class="fas fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                    `;
-
-                    // Add click handler for loading chat
-                    historyItem.querySelector('.history-name').addEventListener('click', () => loadChat(chat.id));
-
-                    // Add click handler for edit button
-                    historyItem.querySelector('.edit-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        startEditingChatName(historyItem, chat);
-                    });
-
-                    // Add click handler for delete button
-                    historyItem.querySelector('.delete-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showModal(chat.id, () => {
-                            // Directly remove after confirmation
-                            historyItem.remove();
-                        });
-                    });
-
-                    // Handle enter key in edit input
-                    const editInput = historyItem.querySelector('.edit-name-input');
-                    editInput.addEventListener('keypress', (e) => {
-                        if (e.key === 'Enter') {
-                            finishEditingChatName(historyItem, chat);
-                        }
-                    });
-
-                    // Handle blur (click outside) in edit input
-                    editInput.addEventListener('blur', () => {
-                        finishEditingChatName(historyItem, chat);
-                    });
-
-                    section.appendChild(historyItem);
-                });
-
-                return section;
-            };
-
-            // Render each section if it has chats
-            if (groupedChats.today.length > 0) {
-                historyList.appendChild(renderSection('今天', groupedChats.today));
-            }
-            if (groupedChats.yesterday.length > 0) {
-                historyList.appendChild(renderSection('昨天', groupedChats.yesterday));
-            }
-            if (groupedChats.last7Days.length > 0) {
-                historyList.appendChild(renderSection('过去7天', groupedChats.last7Days));
-            }
-            if (groupedChats.last30Days.length > 0) {
-                historyList.appendChild(renderSection('过去30天', groupedChats.last30Days));
-            }
-            if (groupedChats.older.length > 0) {
-                historyList.appendChild(renderSection('更早', groupedChats.older));
-            }
-        }
-
-        // 开始编辑对话名称
-        function startEditingChatName(historyItem, chat) {
-            historyItem.classList.add('editing');
-            const input = historyItem.querySelector('.edit-name-input');
-            input.focus();
-            input.select();
-        }
-
-        // 完成编辑对话名称
-        function finishEditingChatName(historyItem, chat) {
-            const input = historyItem.querySelector('.edit-name-input');
-            const newName = input.value.trim();
-
-            if (newName && newName !== chat.name) {
-                chat.name = newName;
-                saveChats();
-
-                // Update the displayed name
-                const nameElement = historyItem.querySelector('.history-name');
-                nameElement.textContent = newName;
-                nameElement.name = newName;
-            }
-
-            historyItem.classList.remove('editing');
-        }
-
-        // 重新发送消息
-        function resendMessage(msgIndex) {
-            const currentChat = getCurrentChat();
-            if (!currentChat || msgIndex < 0 || msgIndex >= currentChat.messages.length) return;
-
-            // 删除该消息之后的所有消息
-            currentChat.messages = currentChat.messages.slice(0, msgIndex + 1);
-            saveChats();
-            renderChat(currentChat.messages);
-
-            // 重新发送消息
-            const messageToResend = currentChat.messages[msgIndex];
-            sendMessage(messageToResend.content, msgIndex);
-        }
-
-        // 发送消息
-        function sendMessage(content, msgIndex = -1) {
-            // 处理不同调用方式的内容获取
-            let messageContent = '';
-            if (typeof content === 'string') {
-                messageContent = content.trim();
-            } else {
-                // 默认获取输入框的值
-                messageContent = messageInput.value.trim();
-            }
-
-            if (!messageContent || isWaitingForResponse) return;
-
-            const currentChat = chats.find(c => c.id === currentChatId);
-            if (!currentChat) return;
-
-            // 如果是重新发送，则更新原消息时间戳
-            if (msgIndex >= 0) {
-                const messageToUpdate = currentChat.messages[msgIndex];
-                messageToUpdate.timestamp = new Date().toISOString();
-                messageToUpdate.sentTime = Date.now();
-            } else {
-                // 添加新用户消息
-                // 确保content是字符串
-                const messageContent = typeof content === 'string' ? content :
-                    (content && content.target ? messageInput.value.trim() :
-                        messageInput.value.trim());
-
-                const userMessage = {
-                    role: 'user',
-                    content: messageContent,
-                    timestamp: new Date().toISOString(),
-                    sentTime: Date.now(),
-                    streaming: currentChat.settings.streaming
-                };
-                currentChat.messages.push(userMessage);
-            }
-
-            // 如果是第一条消息则更新聊天标题
-            if (currentChat.messages.length === 1 && msgIndex === -1) {
-                const titleContent = typeof content === 'string' ? content : messageContent;
-                currentChat.name = titleContent.length > 30 ? titleContent.substring(0, 30) + '...' : titleContent;
-                saveChats();
-                renderHistory();
-            }
-
-            // Update model from current selection
-            currentChat.settings.model = currentModel;
-
-            saveChats();
-            renderChat(currentChat.messages);
-            // 自动滚动到底部
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            // Clear input and show loading
-            messageInput.value = '';
-            isWaitingForResponse = true;
-            sendBtn.disabled = true;
-            messageInput.disabled = true;
-
-            // Reset new chat flag if this was the first message
-            if (isNewChat && currentChat.messages.length > 0) {
-                isNewChat = false;
-            }
-
-            // Prepare the full chat history to send (excluding the latest user message)
-            const chatHistory = currentChat.messages
-                .slice(0, -1) // Exclude the latest message
-                .map(msg => ({
-                    role: msg.role,
-                    content: msg.content
-                }));
-
-            // Get the latest user message
-            const latestUserMessage = currentChat.messages.length > 0 ?
-                currentChat.messages[currentChat.messages.length - 1].content : '';
-
-            // 准备公共请求数据
-            const prepareRequestData = () => {
-                return {
-                    chatId: currentChatId,
-                    reqId: crypto.randomUUID(),
-                    query: latestUserMessage,
-                    messages: chatHistory,
-                    settings: {
-                        model: currentChat.settings.model,
-                        systemInstruction: currentChat.settings.systemInstruction,
-                        streaming: currentChat.settings.streaming,
-                        temperature: currentChat.settings.temperature,
-                        topP: currentChat.settings.topP,
-                        topK: currentChat.settings.topK,
-                        repetitionPenalty: currentChat.settings.repetitionPenalty
-                    }
-                };
-            };
-
-            // 获取API端点
-            const getEndpoint = () => {
-                return currentChat.settings.streaming ?
-                    currentChat.settings.streamingEndpoint :
-                    currentChat.settings.nonStreamingEndpoint;
-            };
-
-            // 处理API响应错误
-            const handleApiError = (error) => {
-                console.error('Error:', error);
-                resetInputState();
-                notification.error('请求失败: ' + error.message);
-            };
-
-            // 处理API响应成功
-            const handleApiSuccess = (assistantMessage) => {
-                const userMessages = currentChat.messages.filter(m => m.role === 'user');
-                const lastUserMessage = userMessages[userMessages.length - 1];
-                assistantMessage.elapsedTime = lastUserMessage ? Date.now() - lastUserMessage.sentTime : 0;
-
-                currentChat.messages.push(assistantMessage);
-                saveChats();
-                renderChat(currentChat.messages);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                resetInputState();
-            };
-
-            // 重置输入状态
-            const resetInputState = () => {
-                isWaitingForResponse = false;
-                sendBtn.disabled = false;
-                messageInput.disabled = false;
-                messageInput.focus();
-            };
-
-            // 处理流式响应
-            const handleStreamResponse = async (response) => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let assistantMessage = {
-                    role: 'assistant',
-                    content: '',
-                    model: currentChat.settings.model,
-                    timestamp: new Date().toISOString(),
-                    elapsedTime: 0,
-                    streaming: currentChat.settings.streaming
-                };
-
-                const readStream = async () => {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        return; // 仅结束流读取，不处理消息
-                    }
-
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
-                    let buffer = '';
-
-                    for (const line of lines) {
-                        if (line.trim() === '') continue;
-                        if (line.startsWith('data:')) {
-                            const data = line.substring(5).trim();
-                            buffer += data;
-
-                            try {
-                                const parsed = JSON.parse(buffer);
-                                if (parsed.delta && parsed.status === 'delta') {
-                                    assistantMessage.content += parsed.delta;
-                                    const tempMessages = [...currentChat.messages, assistantMessage];
-                                    renderChat(tempMessages);
-                                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                                    buffer = '';
-                                } else if (parsed.status === 'finish') {
-                                    // 只在finish状态处理最终消息
-                                    handleApiSuccess(assistantMessage);
-                                    buffer = '';
-                                    return; // 结束流读取
-                                }
-                            } catch (e) {
-                                console.log('Partial JSON received, buffering...');
-                            }
-                        }
-                    }
-
-                    return readStream();
-                };
-
-                return readStream();
-            };
-
-            // 处理非流式响应
-            const handleNonStreamResponse = async (response) => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-
-                const data = await response.json();
-                const assistantMessage = {
-                    role: 'assistant',
-                    content: data.response,
-                    model: currentChat.settings.model,
-                    timestamp: new Date().toISOString(),
-                    elapsedTime: 0,
-                    streaming: currentChat.settings.streaming
-                };
-
-                handleApiSuccess(assistantMessage);
-            };
-
-            // 执行API请求
-            const executeApiRequest = async () => {
-                const requestData = prepareRequestData();
-                const endpoint = getEndpoint();
-
-                try {
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestData)
-                    });
-
-                    if (currentChat.settings.streaming) {
-                        await handleStreamResponse(response);
-                    } else {
-                        await handleNonStreamResponse(response);
-                    }
-                } catch (error) {
-                    handleApiError(error);
-                }
-            };
-
-            executeApiRequest();
-        }
-
-
-        // 保存修改记录
-        function savechatChange(chatId, action, data) {
-            const historyKey = `chatChange_${chatId}`;
-            let history = JSON.parse(localStorage.getItem(historyKey)) || [];
-
-            // 将新记录插入到数组开头
-            history.unshift({
-                timestamp: new Date().toISOString(),
-                action,
-                data: JSON.parse(JSON.stringify(data)) // Deep clone
-            });
-
-            // 限制最多保存50条记录
-            if (history.length > 50) {
-                history = history.slice(0, 50);
-            }
-
-            localStorage.setItem(historyKey, JSON.stringify(history));
-            renderchatChange(chatId);
-        }
-
-        // 渲染修改记录
-        function renderchatChange(chatId) {
-            if (!chatId) return;
-
-            const historyKey = `chatChange_${chatId}`;
-            const history = JSON.parse(localStorage.getItem(historyKey)) || [];
-            const historyList = document.getElementById('chatChangeList');
-
-            if (!historyList) return;
-
-            if (history.length === 0) {
-                historyList.innerHTML = `
-                        <div class="text-center text-gray-400 py-4 text-sm">
-                            暂无修改记录
-                        </div>
-                    `;
-                return;
-            }
-
-            historyList.innerHTML = '';
-
-            history.forEach((record, index) => {
-                const recordElement = document.createElement('div');
-                recordElement.className = `change-record p-2 text-sm rounded cursor-pointer hover:bg-gray-100 ${selectedHistoryVersion === index ? 'bg-blue-50 border border-blue-200' : ''}`;
-                recordElement.dataset.index = index;
-
-                const date = new Date(record.timestamp);
-                const timeStr = date.toLocaleTimeString();
-                const dateStr = date.toLocaleDateString();
-
-                recordElement.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <span class="font-medium">${dateStr} ${timeStr}</span>
-                                <span class="text-gray-500 ml-2">${getActionText(record.action)}</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-xs text-gray-400"></i>
-                        </div>
-                    `;
-
-                recordElement.addEventListener('click', () => {
-                    selectedHistoryVersion = index;
-                    document.querySelectorAll('.change-record').forEach(el => {
-                        el.classList.remove('bg-blue-50', 'border', 'border-blue-200');
-                    });
-                    recordElement.classList.add('bg-blue-50', 'border', 'border-blue-200');
-
-                    // 显示历史版本详情
-                    showHistoryPreview(record);
-                });
-
-                historyList.appendChild(recordElement);
-            });
-        }
-
-        // 获取操作描述文本
-        function getActionText(action) {
-            const actions = {
-                'message': '消息修改',
-                'settings': '查看修改',
-                'title': '标题修改',
-                'delete': '删除操作'
-            };
-            return actions[action] || action;
-        }
-
-        // 显示历史版本详情
-        function showHistoryPreview(record) {
-            const previewPanel = document.getElementById('historyPreview');
-            const previewContent = document.getElementById('previewContent');
-            const diffPanel = document.getElementById('diffContent');
-
-            previewPanel.classList.remove('hidden');
-
-            let content = '';
-            switch (record.action) {
-                case 'settings':
-                    const settings = record.data;
-                    for (const key in settings) {
-                        content += `<div class="mb-1"><span class="text-gray-500">${key}:</span> ${JSON.stringify(settings[key])}</div>`;
-                    }
-
-                    // 显示变更对比
-                    diffPanel.classList.remove('hidden');
-
-                    // 设置时间显示
-                    document.getElementById('oldValueTime').textContent = '默认设置';
-                    document.getElementById('newValueTime').textContent = new Date(record.timestamp).toLocaleString();
-
-                    // 使用默认设置作为旧值基准
-                    const oldSettings = JSON.stringify(DEFAULT_CHAT_SETTINGS, null, 2);
-
-                    const oldLines = oldSettings.split('\n');
-                    const oldValueContainer = document.getElementById('oldValue').querySelector('.pl-2');
-                    const oldLineNumbers = document.getElementById('oldValue').querySelector('.text-right');
-
-                    oldValueContainer.innerHTML = oldSettings;
-                    oldLineNumbers.innerHTML = oldLines.map((_, i) => `${i + 1}<br>`).join('');
-
-                    // 处理新值显示并高亮修改部分
-                    const newSettings = JSON.stringify(record.data, null, 2);
-                    const newLines = newSettings.split('\n');
-                    const newValueContainer = document.getElementById('newValue').querySelector('.pl-2');
-                    const newLineNumbers = document.getElementById('newValue').querySelector('.text-right');
-
-                    // 高亮显示修改的部分
-                    const oldObj = JSON.parse(oldSettings);
-                    const newObj = record.data;
-                    let highlightedNewSettings = newSettings;
-
-                    for (const key in newObj) {
-                        if (JSON.stringify(oldObj[key]) !== JSON.stringify(newObj[key])) {
-                            const valueStr = JSON.stringify(newObj[key], null, 2);
-                            highlightedNewSettings = highlightedNewSettings.replace(
-                                `"${key}": ${valueStr}`,
-                                `<span class="text-green-600 font-medium">"${key}": ${valueStr}</span>`
-                            );
-                        }
-                    }
-
-                    newValueContainer.innerHTML = highlightedNewSettings;
-                    newLineNumbers.innerHTML = newLines.map((_, i) => `${i + 1}<br>`).join('');
-                    break;
-
-                default:
-                    content = `<div>操作类型: ${getActionText(record.action)}</div>`;
-                    diffPanel.classList.add('hidden');
-            }
-
-            previewContent.innerHTML = content;
-        }
-
-
-        // 消息通知对象
-        const notification = {
-            container: document.createElement('div'),
-            icons: {
-                success: 'fa-check-circle',
-                warning: 'fa-exclamation-triangle',
-                error: 'fa-exclamation-circle',
-                info: 'fa-info-circle'
-            },
-
-            init: function () {
-                this.container.className = 'fixed top-4 right-4 z-50 transition-all duration-300 transform translate-x-full';
-                document.body.appendChild(this.container);
-            },
-
-            show: function (message, type = 'info', duration = 3000) {
-                const notificationElement = document.createElement('div');
-                notificationElement.className = `notification ${type} p-4 mb-2`;
-                notificationElement.style.minWidth = '300px';
-                notificationElement.style.maxWidth = '500px';
-                notificationElement.style.whiteSpace = 'pre-wrap';
-                notificationElement.style.wordBreak = 'break-word';
-                notificationElement.innerHTML = `
-                    <i class="fas ${this.icons[type] || this.icons.info}"></i>
-                    <span>${message}</span>
-                `;
-
-                this.container.appendChild(notificationElement);
-                this.container.classList.remove('translate-x-full');
-
-                // 自动消失
-                setTimeout(() => {
-                    notificationElement.classList.add('opacity-0', 'translate-y-2');
-                    setTimeout(() => {
-                        notificationElement.remove();
-                        if (this.container.children.length === 0) {
-                            this.container.classList.add('translate-x-full');
-                        }
-                    }, 300);
-                }, duration);
-            },
-
-            success: function (message, duration = 3000) {
-                this.show(message, 'success', duration);
-            },
-
-            error: function (message, duration = 3000) {
-                this.show(message, 'error', duration);
-            },
-
-            warning: function (message, duration = 3000) {
-                this.show(message, 'warning', duration);
-            },
-
-            info: function (message, duration = 3000) {
-                this.show(message, 'info', duration);
-            }
-        };
-
-        // 初始化通知容器
-        notification.init();
-
-        // 保存设置函数
-        function saveSettings() {
-            const chat = getCurrentChat();
-            if (chat) {
-                const oldSettings = JSON.parse(JSON.stringify(chat.settings));
-
-                // 更新聊天设置
-                chat.settings = {
-                    model: modelSelect.value,
-                    streaming: streamingToggle.checked,  // 使用主开关状态
-                    systemInstruction: systemInstructionInput.value,
-                    temperature: parseFloat(temperatureInput.value) || 0.7,
-                    topP: parseFloat(topPInput.value) || 1.0,
-                    topK: parseInt(topKInput.value) || 50,
-                    repetitionPenalty: parseFloat(repetitionPenaltyInput.value) || 0.0,
-                    streamingEndpoint: streamingEndpointInput.value || DEFAULT_CHAT_SETTINGS.streamingEndpoint,
-                    nonStreamingEndpoint: nonStreamingEndpointInput.value || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint
-                };
-
-                // 检查设置是否有变化
-                if (JSON.stringify(oldSettings) !== JSON.stringify(chat.settings)) {
-                    // 记录修改历史
-                    savechatChange(currentChatId, 'settings', chat.settings);
-
-                    // 更新当前模型和流式状态
-                    currentModel = chat.settings.model;
-                    selectedModel.textContent = currentModel;
-                    streamToggle.checked = chat.settings.streaming;
-                    updateStreamToggleState();
-
-                    saveChats();
-                    notification.success('设置已保存');
-                } else {
-                    notification.warning('设置未更改');
-                }
-            }
-        }
-
-        // 显示修改记录Modal
-        function showHistoryModal() {
-            const modal = document.getElementById('historyModal');
-            modal.classList.remove('hidden');
-            renderchatChange(currentChatId);
-
-            // 默认选中第一条记录并触发点击
-            setTimeout(() => {
-                const firstRecord = document.querySelector('.change-record');
-                if (firstRecord) {
-                    firstRecord.click();
-                }
-            }, 100);
-        }
-
-        // 隐藏修改记录Modal
-        function hideHistoryModal() {
-            const modal = document.getElementById('historyModal');
-            modal.classList.add('hidden');
-        }
-
-        // 在初始化时添加事件监听
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                init();
-
-
-                // 添加修改记录按钮事件
-                const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
-                if (toggleHistoryBtn) {
-                    toggleHistoryBtn.addEventListener('click', showHistoryModal);
-                }
-
-                const closeHistoryModalBtn = document.getElementById('closeHistoryModalBtn');
-                if (closeHistoryModalBtn) {
-                    closeHistoryModalBtn.addEventListener('click', hideHistoryModal);
-                }
-
-                // 当设置面板打开时渲染修改记录
-                if (settingsBtn) {
-                    settingsBtn.addEventListener('click', () => {
-                        setTimeout(() => {
-                            const historyContainer = document.getElementById('historyContainer');
-                            if (historyContainer && !historyContainer.classList.contains('hidden')) {
-                                renderchatChange(currentChatId);
-                            }
-                        }, 100);
-                    });
-                }
-            } catch (error) {
-                console.error('Initialization error:', error);
-            }
-        });
-    </script>
+              </div>
+            </div>
+            <div class="overflow-auto max-h-96">
+              <div class="text-green-500 mb-1 text-sm">新值</div>
+              <div class="text-xs text-gray-500 mb-2" id="newValueTime"></div>
+              <div class="font-mono text-xs bg-gray-100 p-1.5 rounded" id="newValue">
+                <div class="flex">
+                  <div class="text-gray-400 pr-2 select-none border-r border-gray-300 w-8 text-right"></div>
+                  <div class="pl-2 break-all whitespace-pre-wrap"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<template id="userMessageTemplate">
+  <div class="flex justify-end items-start mb-3 space-x-2.5" data-message-type="user">
+    <div class="max-w-[80%] relative">
+      <div class="p-3 user-message"></div>
+      <div class="edit-message-container hidden">
+        <div class="relative">
+          <textarea class="edit-textarea" rows="4"></textarea>
+          <div class="edit-buttons">
+            <button class="edit-button cancel-button">取消</button>
+            <button class="edit-button save-button">发送</button>
+          </div>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 mt-1 text-right">
+        <span class="timestamp"></span>
+        <button class="resend-btn ml-2 text-blue-600 opacity-0 hover:opacity-100 transition-opacity">
+          <i class="fas fa-redo mr-0.5 text-xs"></i>重新发送
+        </button>
+      </div>
+    </div>
+    <div class="flex flex-col items-center">
+      <div class="avatar user-avatar"><i class="fas fa-user"></i></div>
+      <div class="text-xs text-gray-500 mt-1">You</div>
+    </div>
+  </div>
+</template>
+<template id="assistantMessageTemplate">
+  <div class="flex justify-start items-start mb-3 space-x-2.5" data-message-type="assistant">
+    <div class="flex flex-col items-center">
+      <div class="avatar assistant-avatar"><i class="fas fa-robot"></i></div>
+      <div class="text-xs text-gray-500 mt-1 model-name-display" style="width: 70px; display: inline-block; text-align: center;">Assistant</div>
+    </div>
+    <div class="max-w-[80%]">
+      <div class="p-3 assistant-message"></div>
+      <div class="text-xs text-gray-500 mt-1">
+        <span class="timestamp"></span>
+        <span class="elapsed-time"></span>
+        <span class="streaming-status ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs"></span>
+      </div>
+    </div>
+  </div>
+</template>
+<template id="historyItemTemplate">
+  <div class="history-item p-2.5 rounded-lg flex justify-between items-center group">
+    <div class="flex-1 min-w-0">
+      <div class="history-name truncate text-[13px]"></div>
+      <input class="edit-name-input" maxlength="40" type="text">
+    </div>
+    <div class="flex items-center space-x-2">
+      <span class="time-string text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+      <button class="delete-btn p-1 rounded-md hover:bg-gray-200 transition-colors">
+        <i class="fas fa-trash text-xs"></i>
+      </button>
+    </div>
+  </div>
+</template>
+<template id="historySectionTemplate">
+  <div class="history-section">
+    <div class="history-section-name"></div>
+  </div>
+</template>
+<template id="chatChangeRecordTemplate">
+  <div class="change-record p-2.5 text-sm rounded-md cursor-pointer hover:bg-gray-100">
+    <div class="flex justify-between items-center">
+      <div>
+        <span class="font-medium record-timestamp"></span>
+        <span class="text-gray-500 ml-2 record-action"></span>
+      </div>
+      <i class="fas fa-chevron-right text-sm text-gray-400"></i>
+    </div>
+  </div>
+</template>
+<template id="notificationTemplate">
+  <div class="notification" style="min-width: 300px; max-width: 500px; white-space: pre-wrap; word-break: break-word;">
+    <i class="fas"></i>
+    <span></span>
+  </div>
+</template>
+<template id="initialChatEmptyStateTemplate">
+  <div class="flex flex-col items-center justify-center h-full text-gray-500">
+    <i class="fas fa-comment-dots text-4xl mb-4"></i>
+    <p class="text-xl font-light">开始新的对话</p>
+  </div>
+</template>
+<template id="historyListEmptyStateTemplate">
+  <div class="history-empty-state">
+    <div class="history-empty-icon"><i class="fas fa-comments"></i></div>
+    <p>暂无对话记录</p>
+  </div>
+</template>
+<template id="chatChangeListEmptyStateTemplate">
+  <div class="text-center text-gray-500 py-4 text-sm">暂无修改记录</div>
+</template>
+<script>
+  class Utils {
+      static generateUUID() {
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => (c === 'x' ? Math.random() * 16 | 0 : (Math.random() * 16 | 0) & 0x3 | 0x8).toString(16));
+      }
+      static processThinkContent(content) {
+          const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+          if (!thinkMatch) return marked.parse(content);
+          const thinkContent = thinkMatch[1].trim();
+          const restContent = content.replace(thinkMatch[0], '').trim();
+          if (!thinkContent) return restContent ? marked.parse(restContent) : '';
+          const thinkToggleHTML = `<div class="think-toggle"><i class="fas fa-chevron-right"></i><span>深度思考</span></div>`;
+          const thinkContentHTML = `<div class="think-content">${marked.parse(thinkContent)}</div>`;
+          const normalContentHTML = restContent ? `<div class="normal-content">${marked.parse(restContent)}</div>` : '';
+          return `<div class="think-container">${thinkToggleHTML}${thinkContentHTML}</div>${normalContentHTML}`;
+      }
+      static groupChatsByTime(chatsToGroup) {
+          const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+          const last7Days = new Date(today); last7Days.setDate(last7Days.getDate() - 7);
+          const last30Days = new Date(today); last30Days.setDate(last30Days.getDate() - 30);
+          const grouped = { today: [], yesterday: [], last7Days: [], last30Days: [], older: [] };
+          chatsToGroup.forEach(chat => {
+              const chatDate = new Date(chat.createdAt);
+              if (chatDate >= today) grouped.today.push(chat);
+              else if (chatDate >= yesterday) grouped.yesterday.push(chat);
+              else if (chatDate >= last7Days) grouped.last7Days.push(chat);
+              else if (chatDate >= last30Days) grouped.last30Days.push(chat);
+              else grouped.older.push(chat);
+          });
+          return grouped;
+      }
+      static debounce(func, wait) {
+          let timeout;
+          return function executedFunction(...args) {
+              const later = () => {
+                  clearTimeout(timeout);
+                  func.apply(this, args);
+              };
+              clearTimeout(timeout);
+              timeout = setTimeout(later, wait);
+          };
+      }
+  }
+  class NotificationManager {
+      constructor(appInstance) {
+          this.app = appInstance;
+          this.container = null;
+          this.icons = { success: 'fa-check-circle', warning: 'fa-exclamation-triangle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+      }
+      init() {
+          this.container = $('<div class="fixed top-4 right-4 z-[100] transition-all duration-300 transform translate-x-full"></div>').appendTo('body');
+      }
+      show(message, type = 'info', duration = 3000) {
+          const notificationElement = $(this.app.DOM.notificationTemplate);
+          notificationElement.addClass(type).find('i').addClass(this.icons[type] || this.icons.info);
+          notificationElement.find('span').text(message);
+          notificationElement.css({ opacity: 0, transform: 'translateY(10px) scale(0.95)' })
+              .appendTo(this.container)
+              .animate({ opacity: 1, transform: 'translateY(0) scale(1)' }, 300, () => {
+                  setTimeout(() => {
+                      notificationElement.animate({ opacity: 0, transform: 'translateY(10px) scale(0.95)' }, 300, () => {
+                          notificationElement.remove();
+                          if (this.container.children().length === 0) {
+                              this.container.addClass('translate-x-full');
+                          }
+                      });
+                  }, duration);
+              });
+          if (this.container.children().length === 1 && this.container.hasClass('translate-x-full')) {
+              this.container.removeClass('translate-x-full');
+          }
+      }
+      success(message, duration = 3000) { this.show(message, 'success', duration); }
+      error(message, duration = 3000) { this.show(message, 'error', duration); }
+      warning(message, duration = 3000) { this.show(message, 'warning', duration); }
+      info(message, duration = 3000) { this.show(message, 'info', duration); }
+  }
+  class DataManager {
+      constructor(appInstance) {
+          this.app = appInstance;
+      }
+      saveChatsToLocalStorage() {
+          localStorage.setItem('chats', JSON.stringify(this.app.STATE.chats));
+      }
+      getCurrentChat() {
+          if (!this.app.STATE.currentChatId) return null;
+          let chat = this.app.STATE.chats.find(c => c.id === this.app.STATE.currentChatId);
+          if (!chat) {
+              chat = { id: this.app.STATE.currentChatId, name: "新对话", settings: $.extend(true, {}, DEFAULT_CHAT_SETTINGS), messages: [], createdAt: new Date().toISOString() };
+              this.app.STATE.chats.push(chat);
+          }
+          return chat;
+      }
+      loadChatSettings() {
+          const chat = this.getCurrentChat();
+          if (chat && chat.settings) {
+              const settings = chat.settings;
+              this.app.DOM.systemInstructionInput.val(settings.systemInstruction || DEFAULT_CHAT_SETTINGS.systemInstruction);
+              this.app.DOM.temperatureInput.val(settings.temperature || DEFAULT_CHAT_SETTINGS.temperature);
+              this.app.DOM.topPInput.val(settings.topP || DEFAULT_CHAT_SETTINGS.topP);
+              this.app.DOM.topKInput.val(settings.topK || DEFAULT_CHAT_SETTINGS.topK);
+              this.app.DOM.repetitionPenaltyInput.val(settings.repetitionPenalty || DEFAULT_CHAT_SETTINGS.repetitionPenalty);
+              this.app.DOM.streamingToggle.prop('checked', settings.isStreaming || DEFAULT_CHAT_SETTINGS.isStreaming);
+              this.app.DOM.streamingEndpointInput.val(settings.streamingEndpoint || DEFAULT_CHAT_SETTINGS.streamingEndpoint);
+              this.app.DOM.nonStreamingEndpointInput.val(settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint);
+              this.app.DOM.streamingEndpointInput.attr('placeholder', settings.streamingEndpoint || DEFAULT_CHAT_SETTINGS.streamingEndpoint);
+              this.app.DOM.nonStreamingEndpointInput.attr('placeholder', settings.nonStreamingEndpoint || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint);
+              this.app.STATE.currentModel = settings.model || DEFAULT_CHAT_SETTINGS.model;
+              this.app.ui.updateStreamToggleVisualState();
+              this.app.DOM.selectedModelDisplay.text(this.app.STATE.currentModel);
+              this.app.DOM.modelSelectorBtn.find('.model-description').text(this.app.MODEL_INFO[this.app.STATE.currentModel]?.description || "");
+          }
+      }
+      saveCurrentChatSettings() {
+          const chat = this.getCurrentChat();
+          if (chat) {
+              const oldSettings = $.extend(true, {}, chat.settings);
+              chat.settings = {
+                  model: this.app.DOM.selectedModelDisplay.text(),
+                  isStreaming: this.app.DOM.streamingToggle.is(':checked'),
+                  systemInstruction: this.app.DOM.systemInstructionInput.val(),
+                  temperature: parseFloat(this.app.DOM.temperatureInput.val()) || DEFAULT_CHAT_SETTINGS.temperature,
+                  topP: parseFloat(this.app.DOM.topPInput.val()) || DEFAULT_CHAT_SETTINGS.topP,
+                  topK: parseInt(this.app.DOM.topKInput.val()) || DEFAULT_CHAT_SETTINGS.topK,
+                  repetitionPenalty: parseFloat(this.app.DOM.repetitionPenaltyInput.val()) || DEFAULT_CHAT_SETTINGS.repetitionPenalty,
+                  streamingEndpoint: this.app.DOM.streamingEndpointInput.val() || DEFAULT_CHAT_SETTINGS.streamingEndpoint,
+                  nonStreamingEndpoint: this.app.DOM.nonStreamingEndpointInput.val() || DEFAULT_CHAT_SETTINGS.nonStreamingEndpoint
+              };
+              if (JSON.stringify(oldSettings) !== JSON.stringify(chat.settings)) {
+                  this.saveChatChangeRecord(this.app.STATE.currentChatId, 'settings', chat.settings);
+                  this.app.STATE.currentModel = chat.settings.model;
+                  this.app.DOM.selectedModelDisplay.text(this.app.STATE.currentModel);
+                  this.app.ui.updateStreamToggleVisualState();
+                  this.saveChatsToLocalStorage();
+                  this.app.ui.notification.success('设置已保存');
+              } else {
+                  this.app.ui.notification.warning('设置未更改');
+              }
+          }
+      }
+      createNewChat() {
+          const chatId = Utils.generateUUID();
+          const newChat = { id: chatId, name: "新对话", settings: $.extend(true, {}, DEFAULT_CHAT_SETTINGS), messages: [], createdAt: new Date().toISOString() };
+          this.app.STATE.chats.unshift(newChat);
+          this.app.STATE.currentChatId = chatId;
+          this.saveChatsToLocalStorage();
+          this.app.DOM.streamingToggle.prop('checked', newChat.settings.isStreaming);
+          this.app.ui.updateStreamToggleVisualState();
+          this.app.ui.renderChatHistory();
+          this.loadChatById(newChat.id);
+          this.app.DOM.messageInput.trigger('focus');
+          this.app.DOM.chatTitle.text(newChat.name);
+      }
+      loadChatById(chatId) {
+          const chat = this.app.STATE.chats.find(c => c.id == chatId);
+          if (!chat) return;
+          this.app.STATE.currentChatId = chatId;
+          this.app.STATE.currentModel = chat.settings.model || DEFAULT_CHAT_SETTINGS.model;
+          this.app.DOM.selectedModelDisplay.text(this.app.STATE.currentModel);
+          this.app.DOM.modelSelectorBtn.find('.model-description').text(this.app.MODEL_INFO[this.app.STATE.currentModel]?.description || '');
+          this.app.DOM.modelOptions.removeClass('selected').filter(`[data-value="${this.app.STATE.currentModel}"]`).addClass('selected');
+          this.app.DOM.streamingToggle.prop('checked', chat.settings.isStreaming);
+          this.app.ui.updateStreamToggleVisualState();
+          this.app.ui.renderChatMessages(chat.messages);
+          this.app.DOM.historyList.find('.history-item').removeClass('active').filter(`[data-chat-id="${chatId}"]`).addClass('active');
+          this.app.STATE.isNewChat = chat.messages.length === 0;
+          if (this.app.DOM.settingsPanel.hasClass('open')) this.loadChatSettings();
+          this.app.DOM.chatTitle.text(chat.name);
+      }
+      confirmChatDeletion() {
+          if (!this.app.STATE.chatToDelete) {
+              this.app.ui.hideConfirmationModal();
+              return;
+          }
+          this.app.STATE.chats = this.app.STATE.chats.filter(chat => chat.id !== this.app.STATE.chatToDelete);
+          this.saveChatsToLocalStorage();
+          if (this.app.STATE.currentChatId === this.app.STATE.chatToDelete) {
+              this.app.STATE.currentChatId = null;
+              if (this.app.STATE.chats.length > 0) this.loadChatById(this.app.STATE.chats[0].id);
+              else this.createNewChat();
+          }
+          this.app.ui.renderChatHistory();
+          this.app.ui.hideConfirmationModal();
+      }
+      saveChatChangeRecord(chatId, action, data) {
+          const historyKey = `chatChange_${chatId}`;
+          let history = JSON.parse(localStorage.getItem(historyKey)) || [];
+          history.unshift({ timestamp: new Date().toISOString(), action, data: $.extend(true, {}, data) });
+          if (history.length > 50) history = history.slice(0, 50);
+          localStorage.setItem(historyKey, JSON.stringify(history));
+          if (this.app.DOM.historyModal.is(':visible') || this.app.DOM.settingsPanel.hasClass('open')) {
+              this.app.ui.renderChatChangeRecords(chatId);
+          }
+      }
+      resendUserMessage(messageIndex) {
+          const chat = this.getCurrentChat();
+          if (!chat || messageIndex < 0 || messageIndex >= chat.messages.length) return;
+          chat.messages = chat.messages.slice(0, messageIndex + 1);
+          this.saveChatsToLocalStorage();
+          this.app.ui.renderChatMessages(chat.messages);
+          this.app.api.sendChatMessage(chat.messages[messageIndex].content, true);
+      }
+  }
+  class UIManager {
+      constructor(appInstance) {
+          this.app = appInstance;
+          this.notification = new NotificationManager(this.app);
+      }
+      updateStreamToggleVisualState() {
+          if (this.app.DOM.streamingToggle.length) {
+              const chat = this.app.data.getCurrentChat();
+              this.app.DOM.streamingToggle.prop('checked', chat?.settings.isStreaming || DEFAULT_CHAT_SETTINGS.isStreaming);
+          }
+      }
+      showSettingsPanel() {
+          if (!this.app.STATE.currentChatId) return;
+          this.app.data.loadChatSettings();
+          this.app.DOM.settingsPanel.addClass('open');
+          this.app.DOM.settingsOverlay.addClass('open');
+          $('body').css('overflow', 'hidden');
+      }
+      hideSettingsPanel() {
+          this.app.DOM.settingsPanel.removeClass('open');
+          this.app.DOM.settingsOverlay.removeClass('open');
+          $('body').css('overflow', '');
+      }
+      toggleModelSelectorDropdown(event) {
+          event.stopPropagation();
+          const isOpening = !this.app.DOM.modelSelector.hasClass('open');
+          this.app.DOM.modelSelector.toggleClass('open');
+          this.app.DOM.modelSelectorBtn.find('i').toggleClass('rotate-180', isOpening);
+          if (isOpening) {
+              this.app.DOM.modelOptions.removeClass('selected').filter(`[data-value="${this.app.STATE.currentModel}"]`).addClass('selected');
+          }
+      }
+      selectModelOption(modelValue) {
+          this.app.STATE.currentModel = modelValue;
+          this.app.DOM.selectedModelDisplay.text(modelValue);
+          this.app.DOM.modelSelectorBtn.find('.model-description').text(this.app.MODEL_INFO[modelValue]?.description || '');
+          this.app.DOM.modelSelector.removeClass('open');
+          this.app.DOM.modelSelectorBtn.find('i').removeClass('rotate-180');
+          this.app.DOM.modelOptions.removeClass('selected').filter(`[data-value="${modelValue}"]`).addClass('selected');
+      }
+      showConfirmationModal(chatIdToDelete) {
+          this.app.STATE.chatToDelete = chatIdToDelete;
+          this.app.DOM.confirmModal.removeClass('hidden').removeClass('modal-exit').addClass('modal-enter');
+      }
+      hideConfirmationModal() {
+          this.app.DOM.confirmModal.removeClass('modal-enter').addClass('modal-exit');
+          this.app.DOM.confirmModal.one('animationend', () => {
+              this.app.DOM.confirmModal.addClass('hidden').removeClass('modal-exit');
+              this.app.STATE.chatToDelete = null;
+          });
+      }
+      renderChatMessages(messages) {
+          this.app.DOM.chatContainer.empty();
+          if (messages.length === 0) {
+              this.app.DOM.chatContainer.html(this.app.DOM.initialChatEmptyStateTemplate);
+              return;
+          }
+          messages.forEach((message, index) => {
+              let messageElement;
+              if (message.role === 'user') {
+                  messageElement = $(this.app.DOM.userMessageTemplate);
+                  messageElement.attr('data-message-index', index);
+                  messageElement.find('.user-message').html(Utils.processThinkContent(message.content));
+                  messageElement.find('.timestamp').text(message.timestamp ? new Date(message.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+                  messageElement.find('.resend-btn').attr('data-message-index', index);
+              } else {
+                  messageElement = $(this.app.DOM.assistantMessageTemplate);
+                  messageElement.find('.assistant-message').html(Utils.processThinkContent(message.content));
+                  messageElement.find('.model-name-display').text(message.model || 'Assistant');
+                  messageElement.find('.timestamp').text(message.timestamp ? new Date(message.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+                  if (message.elapsedTime) {
+                      messageElement.find('.elapsed-time').text(` · 耗时 ${message.elapsedTime}ms`);
+                  }
+                  messageElement.find('.streaming-status').text(message.isStreaming ? '流式' : '非流式');
+              }
+              this.app.DOM.chatContainer.append(messageElement);
+          });
+          this.app.DOM.chatContainer.scrollTop(this.app.DOM.chatContainer[0].scrollHeight);
+      }
+      startEditUserMessage(userMessageDiv, messageIndex) {
+          const messageContainer = userMessageDiv.closest('.max-w-\\[80\\%\\]');
+          const editContainer = messageContainer.find('.edit-message-container');
+          const textarea = editContainer.find('textarea.edit-textarea');
+          const currentMessages = this.app.data.getCurrentChat()?.messages;
+          if (currentMessages && currentMessages[messageIndex]) {
+              let rawContent = currentMessages[messageIndex].content;
+              const thinkMatch = rawContent.match(/<think>[\s\S]*?<\/think>/);
+              if (thinkMatch) rawContent = rawContent.replace(thinkMatch[0], '').trim();
+              textarea.val(rawContent);
+          }
+          userMessageDiv.addClass('hidden');
+          editContainer.removeClass('hidden');
+          textarea.trigger('focus').on('blur.editUser', function (event) {
+              if (!$(event.relatedTarget).closest('.edit-buttons').length) {
+                  userMessageDiv.removeClass('hidden');
+                  editContainer.addClass('hidden');
+                  $(this).off('blur.editUser');
+              }
+          });
+      }
+      cancelEditUserMessage(buttonElement) {
+          const editContainer = $(buttonElement).closest('.edit-message-container');
+          const messageContainer = editContainer.closest('.max-w-\\[80\\%\\]');
+          messageContainer.find('.user-message').removeClass('hidden');
+          editContainer.addClass('hidden');
+          editContainer.find('textarea.edit-textarea').off('blur.editUser');
+      }
+      saveEditedUserMessage(buttonElement, messageIndex) {
+          const editContainer = $(buttonElement).closest('.edit-message-container');
+          const textarea = editContainer.find('textarea.edit-textarea');
+          const newContent = textarea.val().trim();
+          if (!newContent) {
+              this.notification.error('消息内容不能为空');
+              return;
+          }
+          const chat = this.app.data.getCurrentChat();
+          if (chat && chat.messages[messageIndex]) {
+              let originalFullContent = chat.messages[messageIndex].content;
+              const thinkMatch = originalFullContent.match(/<think>[\s\S]*?<\/think>/);
+              let finalContent = newContent;
+              if (thinkMatch) finalContent = thinkMatch[0] + "\n" + newContent;
+              if (chat.messages[messageIndex].content !== finalContent) {
+                  chat.messages[messageIndex].content = finalContent;
+                  this.app.data.saveChatsToLocalStorage();
+                  this.app.data.resendUserMessage(messageIndex);
+              }
+              const messageContainer = editContainer.closest('.max-w-\\[80\\%\\]');
+              messageContainer.find('.user-message').removeClass('hidden');
+              editContainer.addClass('hidden');
+              textarea.off('blur.editUser');
+          }
+      }
+      renderChatHistory() {
+          this.app.DOM.historyList.empty();
+          const sortedChats = [...this.app.STATE.chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          if (!sortedChats || sortedChats.length === 0) {
+              this.app.DOM.historyList.html(this.app.DOM.historyListEmptyStateTemplate);
+              return;
+          }
+          const groupedChats = Utils.groupChatsByTime(sortedChats);
+          const sectionNameMap = { today: '今天', yesterday: '昨天', last7Days: '过去7天', last30Days: '过去30天', older: '更早' };
+          Object.keys(sectionNameMap).forEach(key => {
+              const sectionChats = groupedChats[key];
+              if (sectionChats.length === 0) return;
+              const sectionElement = $(this.app.DOM.historySectionTemplate);
+              sectionElement.find('.history-section-name').text(sectionNameMap[key]);
+              sectionChats.forEach(chat => {
+                  const historyItem = $(this.app.DOM.historyItemTemplate);
+                  historyItem.attr('data-chat-id', chat.id);
+                  if (chat.id === this.app.STATE.currentChatId) historyItem.addClass('active');
+                  historyItem.find('.history-name').text(chat.name).attr('title', chat.name);
+                  historyItem.find('.edit-name-input').val(chat.name);
+                  historyItem.find('.time-string').text(new Date(chat.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+                  sectionElement.append(historyItem);
+              });
+              this.app.DOM.historyList.append(sectionElement);
+          });
+      }
+      startEditingChatName(historyItemElement) {
+          historyItemElement.addClass('editing').find('.edit-name-input').trigger('focus').trigger('select');
+      }
+      finishEditingChatName(historyItemElement) {
+          const input = historyItemElement.find('.edit-name-input');
+          const newName = input.val().trim();
+          const chatId = historyItemElement.data('chat-id');
+          const chat = this.app.STATE.chats.find(c => c.id === chatId);
+          if (chat && newName && newName !== chat.name) {
+              chat.name = newName;
+              this.app.data.saveChatsToLocalStorage();
+              historyItemElement.find('.history-name').text(newName).attr('title', newName);
+              if (this.app.STATE.currentChatId === chatId) this.app.DOM.chatTitle.text(newName);
+          }
+          historyItemElement.removeClass('editing');
+      }
+      renderChatChangeRecords(chatId) {
+          if (!chatId || !this.app.DOM.chatChangeList.length) return;
+          const historyKey = `chatChange_${chatId}`;
+          const history = JSON.parse(localStorage.getItem(historyKey)) || [];
+          this.app.DOM.chatChangeList.empty();
+          if (history.length === 0) {
+              this.app.DOM.chatChangeList.html(this.app.DOM.chatChangeListEmptyStateTemplate);
+              this.app.DOM.historyPreview.addClass('hidden');
+              return;
+          }
+          const actionTextMap = { 'message': '消息修改', 'settings': '设置修改', 'title': '标题修改', 'delete': '删除操作' };
+          history.forEach((record, index) => {
+              const recordElement = $(this.app.DOM.chatChangeRecordTemplate).attr('data-index', index);
+              if (this.app.STATE.selectedHistoryVersion === index) recordElement.addClass('bg-blue-100 border border-blue-300');
+              const date = new Date(record.timestamp);
+              recordElement.find('.record-timestamp').text(`${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`);
+              recordElement.find('.record-action').text(actionTextMap[record.action] || record.action);
+              this.app.DOM.chatChangeList.append(recordElement);
+          });
+          if (history.length > 0) {
+              const targetIndex = this.app.STATE.selectedHistoryVersion !== null ? this.app.STATE.selectedHistoryVersion : 0;
+              const targetRecordElement = this.app.DOM.chatChangeList.find(`.change-record[data-index="${targetIndex}"]`);
+              if (targetRecordElement.length) {
+                  targetRecordElement.trigger('click');
+              } else if (this.app.DOM.chatChangeList.find('.change-record:first').length) {
+                  this.app.DOM.chatChangeList.find('.change-record:first').trigger('click');
+              }
+          } else {
+              this.app.DOM.historyPreview.addClass('hidden');
+          }
+      }
+      showHistoryVersionPreview(record) {
+          this.app.DOM.historyPreview.removeClass('hidden');
+          let contentHtml = '';
+          this.app.DOM.diffContent.addClass('hidden');
+          const actionTextMap = { 'message': '消息修改', 'settings': '设置修改', 'title': '标题修改', 'delete': '删除操作' };
+          if (record.action === 'settings') {
+              const settings = record.data;
+              for (const key in settings) {
+                  contentHtml += `<div class="mb-1"><span class="text-gray-600">${key}:</span> ${JSON.stringify(settings[key])}</div>`;
+              }
+              this.app.DOM.diffContent.removeClass('hidden');
+              this.app.DOM.oldValueTime.text('默认设置');
+              this.app.DOM.newValueTime.text(new Date(record.timestamp).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium', hour12: false }));
+              const oldSettingsString = JSON.stringify(DEFAULT_CHAT_SETTINGS, null, 2);
+              const newSettingsString = JSON.stringify(record.data, null, 2);
+              this.app.DOM.oldValueDisplay.html(oldSettingsString);
+              this.app.DOM.oldLineNumbersDisplay.html(oldSettingsString.split('\n').map((_, i) => `${i + 1}<br>`).join(''));
+              let highlightedNewSettings = newSettingsString;
+              const oldObject = DEFAULT_CHAT_SETTINGS;
+              const newObject = record.data;
+              for (const key in newObject) {
+                  if (JSON.stringify(oldObject[key]) !== JSON.stringify(newObject[key])) {
+                      const valueString = JSON.stringify(newObject[key], null, 2).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                      const keyString = JSON.stringify(key);
+                      const regex = new RegExp(`(${keyString}:\\s*${valueString})`, 'g');
+                      highlightedNewSettings = highlightedNewSettings.replace(regex, (match) => `<span class="bg-green-100 text-green-700 font-medium">${match}</span>`);
+                  }
+              }
+              this.app.DOM.newValueDisplay.html(highlightedNewSettings);
+              this.app.DOM.newLineNumbersDisplay.html(newSettingsString.split('\n').map((_, i) => `${i + 1}<br>`).join(''));
+          } else {
+              contentHtml = `<div>操作类型: ${actionTextMap[record.action] || record.action}</div>`;
+              if (record.action === 'title') {
+                  contentHtml += `<div>新标题: ${record.data.newName}</div>`;
+                  if (record.data.oldName) contentHtml += `<div>旧标题: ${record.data.oldName}</div>`;
+              }
+          }
+          this.app.DOM.previewContent.html(contentHtml);
+      }
+      showHistoryModalDialog() {
+          this.app.DOM.historyModal.removeClass('hidden').removeClass('modal-exit').addClass('modal-enter');
+          this.renderChatChangeRecords(this.app.STATE.currentChatId);
+      }
+      hideHistoryModalDialog() {
+          this.app.DOM.historyModal.removeClass('modal-enter').addClass('modal-exit');
+          this.app.DOM.historyModal.one('animationend', () => {
+              this.app.DOM.historyModal.addClass('hidden').removeClass('modal-exit');
+          });
+      }
+      showUserLoginModal() {
+          this.app.DOM.userLoginModal.removeClass('hidden').removeClass('modal-exit').addClass('modal-enter');
+          this.app.DOM.usernameInput.val(this.app.STATE.currentUser || '');
+          this.app.DOM.startChatBtn.prop('disabled', !this.app.DOM.usernameInput.val().trim());
+          this.app.DOM.usernameInput.trigger('focus');
+          $('body').css('overflow', 'hidden');
+      }
+      hideUserLoginModal() {
+          this.app.DOM.userLoginModal.removeClass('modal-enter').addClass('modal-exit');
+          this.app.DOM.userLoginModal.one('animationend', () => {
+              this.app.DOM.userLoginModal.addClass('hidden').removeClass('modal-exit');
+              $('body').css('overflow', '');
+          });
+      }
+      updateUserProfileAvatar(username) {
+          if (username) {
+              this.app.DOM.loggedInUsername.text(username);
+          } else {
+              this.app.DOM.loggedInUsername.text('');
+          }
+      }
+  }
+  class APIManager {
+      constructor(appInstance) {
+          this.app = appInstance;
+      }
+      sendChatMessage(contentOverride = null, isResend = false) {
+          const messageContent = contentOverride !== null ? contentOverride : this.app.DOM.messageInput.val().trim();
+          if (!messageContent || this.app.STATE.isWaitingForResponse) return;
+          const chat = this.app.data.getCurrentChat();
+          if (!chat) return;
+          if (!isResend) {
+              const userMessage = {
+                  role: 'user',
+                  content: messageContent,
+                  timestamp: new Date().toISOString(),
+                  sentTime: Date.now(),
+                  isStreaming: chat.settings.isStreaming
+              };
+              chat.messages.push(userMessage);
+              if (chat.messages.length === 1) {
+                  chat.name = messageContent.length > 25 ? messageContent.substring(0, 25) + '...' : messageContent;
+                  this.app.ui.renderChatHistory();
+                  this.app.DOM.chatTitle.text(chat.name);
+              }
+          } else {
+              const lastUserMessage = chat.messages[chat.messages.length - 1];
+              if (lastUserMessage && lastUserMessage.role === 'user') {
+                  lastUserMessage.timestamp = new Date().toISOString();
+                  lastUserMessage.sentTime = Date.now();
+              }
+          }
+          this.app.data.saveChatsToLocalStorage();
+          this.app.ui.renderChatMessages(chat.messages);
+          if (contentOverride === null) this.app.DOM.messageInput.val('');
+          this.app.STATE.isWaitingForResponse = true;
+          this.app.DOM.sendBtn.addClass('sending').prop('disabled', true);
+          this.app.DOM.messageInput.prop('disabled', true);
+          if (this.app.STATE.isNewChat && chat.messages.length > 0) this.app.STATE.isNewChat = false;
+          const chatHistoryForAPI = chat.messages.slice(0, -1).map(message => ({
+              role: message.role,
+              content: message.content.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+          }));
+          const latestUserQueryForAPI = chat.messages[chat.messages.length - 1].content.replace(/<think>[\s\S]*?<\/think>/, '').trim();
+          const requestData = {
+              chatId: this.app.STATE.currentChatId,
+              reqId: Utils.generateUUID(),
+              query: latestUserQueryForAPI,
+              messages: chatHistoryForAPI,
+              settings: { ...chat.settings },
+              user: this.app.STATE.currentUser
+          };
+          const endpoint = chat.settings.isStreaming ? chat.settings.streamingEndpoint : chat.settings.nonStreamingEndpoint;
+          const resetInputState = () => {
+              this.app.STATE.isWaitingForResponse = false;
+              this.app.DOM.sendBtn.removeClass('sending').prop('disabled', false);
+              this.app.DOM.messageInput.prop('disabled', false).trigger('focus');
+          };
+          const handleApiResponseSuccess = (assistantMessageData) => {
+              const userMessages = chat.messages.filter(message => message.role === 'user');
+              const lastUserMessage = userMessages[userMessages.length - 1];
+              assistantMessageData.elapsedTime = lastUserMessage ? (Date.now() - lastUserMessage.sentTime) : 0;
+              chat.messages.push(assistantMessageData);
+              this.app.data.saveChatsToLocalStorage();
+              this.app.ui.renderChatMessages(chat.messages);
+              resetInputState();
+          };
+          if (chat.settings.isStreaming) {
+              fetch(endpoint, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(requestData)
+              })
+                  .then(response => {
+                      if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                      const reader = response.body.getReader();
+                      const decoder = new TextDecoder();
+                      let assistantMessage = { role: 'assistant', content: '', model: chat.settings.model, timestamp: new Date().toISOString(), elapsedTime: 0, isStreaming: true };
+                      let assistantMessageAdded = false;
+                      let lineBuffer = '';
+                      const readStream = () => {
+                          reader.read().then(({ done, value }) => {
+                              if (done) {
+                                  if (assistantMessageAdded && assistantMessage.content.trim() === '') chat.messages.pop();
+                                  const userMessages = chat.messages.filter(m => m.role === 'user');
+                                  const lastUserMsg = userMessages[userMessages.length - 1];
+                                  if (assistantMessageAdded) assistantMessage.elapsedTime = lastUserMsg ? (Date.now() - lastUserMsg.sentTime) : 0;
+                                  this.app.data.saveChatsToLocalStorage();
+                                  this.app.ui.renderChatMessages(chat.messages);
+                                  resetInputState();
+                                  return;
+                              }
+                              lineBuffer += decoder.decode(value, { stream: true });
+                              let lines = lineBuffer.split('\n');
+                              lineBuffer = lines.pop();
+                              for (const line of lines) {
+                                  if (line.trim() === '' || line.trim() === 'data:') continue;
+                                  const jsonDataToParse = line.startsWith('data:') ? line.substring(5).trim() : line.trim();
+                                  try {
+                                      const parsed = JSON.parse(jsonDataToParse);
+                                      if (parsed.delta && parsed.status === 'delta') {
+                                          if (!assistantMessageAdded) {
+                                              chat.messages.push(assistantMessage);
+                                              assistantMessageAdded = true;
+                                          }
+                                          assistantMessage.content += parsed.delta;
+                                          this.app.ui.renderChatMessages(chat.messages);
+                                      } else if (parsed.status === 'finish') {
+                                          if (assistantMessageAdded && assistantMessage.content.trim() === '') chat.messages.pop();
+                                          const userMessages = chat.messages.filter(m => m.role === 'user');
+                                          const lastUserMsg = userMessages[userMessages.length - 1];
+                                          if (assistantMessageAdded) assistantMessage.elapsedTime = lastUserMsg ? (Date.now() - lastUserMsg.sentTime) : 0;
+                                          this.app.data.saveChatsToLocalStorage();
+                                          this.app.ui.renderChatMessages(chat.messages);
+                                          resetInputState();
+                                          reader.cancel();
+                                          return;
+                                      }
+                                  } catch (e) {
+                                      console.warn('Failed to parse JSON line in stream:', jsonDataToParse, e);
+                                  }
+                              }
+                              readStream();
+                          }).catch(error => {
+                              console.error('Stream reading error:', error);
+                              if (assistantMessageAdded) chat.messages.pop();
+                              this.app.ui.notification.error('流式响应处理失败: ' + error.message);
+                              this.app.ui.renderChatMessages(chat.messages);
+                              resetInputState();
+                          });
+                      }
+                      readStream();
+                  })
+                  .catch(error => {
+                      console.error('API Error (Streaming):', error);
+                      this.app.ui.notification.error('请求失败: ' + error.message);
+                      resetInputState();
+                  });
+          } else {
+              $.ajax({
+                  url: endpoint,
+                  method: 'POST',
+                  contentType: 'application/json',
+                  data: JSON.stringify(requestData),
+                  success: (data) => {
+                      handleApiResponseSuccess({
+                          role: 'assistant',
+                          content: data.response,
+                          model: chat.settings.model,
+                          timestamp: new Date().toISOString(),
+                          isStreaming: false
+                      });
+                  },
+                  error: (jqXHR, textStatus, errorThrown) => {
+                      console.error('API Error (Non-Streaming):', errorThrown);
+                      this.app.ui.notification.error('请求失败: ' + errorThrown);
+                      resetInputState();
+                  }
+              });
+          }
+      }
+  }
+  class EventHandlerManager {
+      constructor(appInstance) {
+          this.app = appInstance;
+      }
+      attachEventListeners() {
+          this.app.DOM.sidebarToggleBtn.on('click', this.handleSidebarToggleClick.bind(this));
+          this.app.DOM.sendBtn.on('click', this.handleSendMessageClick.bind(this));
+          this.app.DOM.messageInput.on('keypress', this.handleMessageInputKeypress.bind(this));
+          this.app.DOM.newChatBtn.on('click', () => this.app.data.createNewChat());
+          this.app.DOM.settingsBtn.on('click', () => this.app.ui.showSettingsPanel());
+          this.app.DOM.closeSettingsBtn.on('click', () => this.app.ui.hideSettingsPanel());
+          this.app.DOM.settingsOverlay.on('click', () => this.app.ui.hideSettingsPanel());
+          this.app.DOM.closeModalBtn.on('click', () => this.app.ui.hideConfirmationModal());
+          this.app.DOM.cancelDeleteBtn.on('click', () => this.app.ui.hideConfirmationModal());
+          this.app.DOM.confirmDeleteBtn.on('click', () => this.app.data.confirmChatDeletion());
+          this.app.DOM.modelSelectorBtn.on('click', (e) => this.app.ui.toggleModelSelectorDropdown(e));
+          this.app.DOM.modelSelector.on('click', '.model-selector-option', (event) => {
+              this.app.ui.selectModelOption($(event.currentTarget).data('value'));
+          });
+          $(document).on('click', this.handleDocumentClickForModelSelector.bind(this));
+          this.app.DOM.saveSettingsBtn.on('click', () => this.app.data.saveCurrentChatSettings());
+          this.app.DOM.toggleHistoryBtn.on('click', () => this.app.ui.showHistoryModalDialog());
+          this.app.DOM.closeHistoryModalBtn.on('click', () => this.app.ui.hideHistoryModalDialog());
+          this.app.DOM.historyList.on('click', '.history-item', this.handleHistoryItemClick.bind(this));
+          this.app.DOM.historyList.on('click', '.delete-btn', this.handleHistoryDeleteClick.bind(this));
+          this.app.DOM.historyList.on('dblclick', '.history-name', this.handleHistoryNameDblClick.bind(this));
+          this.app.DOM.historyList.on('focusout', '.edit-name-input', this.handleHistoryEditFocusOut.bind(this));
+          this.app.DOM.historyList.on('keypress', '.edit-name-input', this.handleHistoryEditKeyPress.bind(this));
+          this.app.DOM.chatContainer.on('dblclick', '.user-message', this.handleUserMessageDblClick.bind(this));
+          this.app.DOM.chatContainer.on('click', '.edit-message-container .cancel-button', this.handleCancelEditUserMessageClick.bind(this));
+          this.app.DOM.chatContainer.on('click', '.edit-message-container .save-button', this.handleSaveEditedUserMessageClick.bind(this));
+          this.app.DOM.chatContainer.on('click', '.resend-btn', this.handleResendMessageClick.bind(this));
+          this.app.DOM.chatContainer.on('click', '.think-toggle', function () {
+              $(this).toggleClass('open').next('.think-content').toggleClass('show');
+          });
+          this.app.DOM.chatChangeList.on('click', '.change-record', this.handleChangeRecordClick.bind(this));
+          this.app.DOM.userProfileBtn.on('click', this.handleUserProfileBtnClick.bind(this));
+          this.app.DOM.startChatBtn.on('click', this.handleStartChatBtnClick.bind(this));
+          this.app.DOM.usernameInput.on('input', this.handleUsernameInput.bind(this));
+          $(window).on('resize', Utils.debounce(this.handleWindowResize.bind(this), 200));
+      }
+      handleSidebarToggleClick() {
+          const sidebar = this.app.DOM.sidebar;
+          const isMobile = this.app.STATE.isMobileView;
+          let stateKey = isMobile ? 'sidebarMobileState' : 'sidebarDesktopState';
+
+          sidebar.toggleClass('collapsed');
+
+          if (sidebar.hasClass('collapsed')) {
+              localStorage.setItem(stateKey, 'collapsed');
+          } else {
+              localStorage.setItem(stateKey, 'expanded');
+          }
+      }
+      handleWindowResize() {
+          const newIsMobile = window.innerWidth <= 768;
+          if (newIsMobile !== this.app.STATE.isMobileView) {
+              this.app._applySidebarStateBasedOnScreen();
+          }
+      }
+      handleSendMessageClick() { this.app.api.sendChatMessage(); }
+      handleMessageInputKeypress(event) {
+          if (event.key === 'Enter' && !event.shiftKey && !this.app.STATE.isWaitingForResponse) {
+              event.preventDefault();
+              this.app.api.sendChatMessage();
+          }
+      }
+      handleDocumentClickForModelSelector(event) {
+          if (!$(event.target).closest('.model-selector').length) {
+              this.app.DOM.modelSelector.removeClass('open');
+              this.app.DOM.modelSelectorBtn.find('i').removeClass('rotate-180');
+          }
+      }
+      handleHistoryItemClick(event) {
+          const $historyItem = $(event.currentTarget);
+          if ($(event.target).closest('.delete-btn').length || $historyItem.hasClass('editing')) return;
+          this.app.data.loadChatById($historyItem.data('chat-id'));
+      }
+      handleHistoryDeleteClick(event) {
+          event.stopPropagation();
+          const chatId = $(event.currentTarget).closest('.history-item').data('chat-id');
+          this.app.ui.showConfirmationModal(chatId);
+      }
+      handleHistoryNameDblClick(event) {
+          event.stopPropagation();
+          const $historyItem = $(event.currentTarget).closest('.history-item');
+          if (!$historyItem.hasClass('editing')) this.app.ui.startEditingChatName($historyItem);
+      }
+      handleHistoryEditFocusOut(event) {
+          const $historyItem = $(event.currentTarget).closest('.history-item');
+          if ($historyItem.hasClass('editing')) this.app.ui.finishEditingChatName($historyItem);
+      }
+      handleHistoryEditKeyPress(event) {
+          if (event.key === 'Enter') {
+              event.preventDefault();
+              const $historyItem = $(event.currentTarget).closest('.history-item');
+              this.app.ui.finishEditingChatName($historyItem);
+          }
+      }
+      handleUserMessageDblClick(event) {
+          const $userMessageDiv = $(event.currentTarget);
+          const $messageElement = $userMessageDiv.closest('[data-message-index]');
+          const messageIndex = parseInt($messageElement.data('message-index'));
+          this.app.ui.startEditUserMessage($userMessageDiv, messageIndex);
+      }
+      handleCancelEditUserMessageClick(event) {
+          this.app.ui.cancelEditUserMessage(event.currentTarget);
+      }
+      handleSaveEditedUserMessageClick(event) {
+          const $button = $(event.currentTarget);
+          const $messageElement = $button.closest('[data-message-index]');
+          const messageIndex = parseInt($messageElement.data('message-index'));
+          this.app.ui.saveEditedUserMessage(event.currentTarget, messageIndex);
+      }
+      handleResendMessageClick(event) {
+          event.stopPropagation();
+          const messageIndex = parseInt($(event.currentTarget).data('message-index'));
+          this.app.data.resendUserMessage(messageIndex);
+      }
+      handleChangeRecordClick(event) {
+          const $recordElement = $(event.currentTarget);
+          const index = parseInt($recordElement.data('index'));
+          this.app.STATE.selectedHistoryVersion = index;
+          this.app.DOM.chatChangeList.find('.change-record').removeClass('bg-blue-100 border border-blue-300');
+          $recordElement.addClass('bg-blue-100 border border-blue-300');
+          const historyKey = `chatChange_${this.app.STATE.currentChatId}`;
+          const history = JSON.parse(localStorage.getItem(historyKey)) || [];
+          if (history[index]) this.app.ui.showHistoryVersionPreview(history[index]);
+      }
+      handleUserProfileBtnClick() {
+          this.app.ui.showUserLoginModal();
+      }
+      handleStartChatBtnClick() {
+          const username = this.app.DOM.usernameInput.val().trim();
+          if (username) {
+              localStorage.setItem('currentUser', username);
+              this.app.STATE.currentUser = username;
+              this.app.ui.updateUserProfileAvatar(username);
+              this.app.ui.hideUserLoginModal();
+          } else {
+              this.app.ui.notification.error('用户名不能为空');
+          }
+      }
+      handleUsernameInput() {
+          const username = this.app.DOM.usernameInput.val().trim();
+          this.app.DOM.startChatBtn.prop('disabled', !username);
+      }
+  }
+  class App {
+      constructor() {
+          this.DOM = {};
+          this.STATE = {
+              currentChatId: null,
+              isWaitingForResponse: false,
+              chatToDelete: null,
+              isNewChat: false,
+              selectedHistoryVersion: null,
+              currentModel: DEFAULT_CHAT_SETTINGS.model,
+              chats: [],
+              isMobileView: false
+          };
+          this.MODEL_INFO = {
+              'community-finance-qwen3': { name: 'community-finance-qwen3', description: "Qwen3" },
+              'community-finance-qwen-72b': { name: 'community-finance-qwen-72b', description: "PnganGPT" },
+              'community-finance-ai': { name: 'community-finance-ai', description: "DeepSeek R1 32B" }
+          };
+          this.data = new DataManager(this);
+          this.ui = new UIManager(this);
+          this.api = new APIManager(this);
+          this.eventHandlers = new EventHandlerManager(this);
+      }
+      _applySidebarStateBasedOnScreen() {
+          const isMobile = window.innerWidth <= 768;
+          this.STATE.isMobileView = isMobile;
+
+          let savedStateKey = isMobile ? 'sidebarMobileState' : 'sidebarDesktopState';
+          let savedState = localStorage.getItem(savedStateKey);
+
+          if (isMobile) {
+              if (savedState === 'expanded') {
+                  this.DOM.sidebar.removeClass('collapsed');
+              } else {
+                  this.DOM.sidebar.addClass('collapsed');
+              }
+          } else {
+              if (savedState === 'collapsed') {
+                  this.DOM.sidebar.addClass('collapsed');
+              } else {
+                  this.DOM.sidebar.removeClass('collapsed');
+              }
+          }
+      }
+      init() {
+          this.DOM = {
+              sidebar: $('#sidebar'),
+              sidebarToggleBtn: $('#sidebarToggleBtn'),
+              historyList: $('#historyList'),
+              chatContainer: $('#chatContainer'),
+              messageInput: $('#messageInput'),
+              sendBtn: $('#sendBtn'),
+              newChatBtn: $('#newChatBtn'),
+              settingsBtn: $('#settingsBtn'),
+              userProfileBtn: $('#userProfileBtn'),
+              userAvatarSmall: $('.user-avatar-small'),
+              loggedInUsername: $('#currentUsername'),
+              userLoginModal: $('#userLoginModal'),
+              usernameInput: $('#usernameInput'),
+              startChatBtn: $('#startChatBtn'),
+              userAvatarLarge: $('.user-avatar-large'),
+              confirmModal: $('#confirmModal'),
+              closeModalBtn: $('#closeModalBtn'),
+              cancelDeleteBtn: $('#cancelDeleteBtn'),
+              confirmDeleteBtn: $('#confirmDeleteBtn'),
+              modelSelectorBtn: $('#modelSelectorBtn'),
+              selectedModelDisplay: $('#selectedModel'),
+              modelOptions: $('.model-selector-option'),
+              modelSelector: $('.model-selector'),
+              settingsPanel: $('#settingsPanel'),
+              settingsOverlay: $('#settingsOverlay'),
+              closeSettingsBtn: $('#closeSettingsBtn'),
+              streamingToggle: $('#streamingToggle'),
+              systemInstructionInput: $('#systemInstructionInput'),
+              temperatureInput: $('#temperatureInput'),
+              topPInput: $('#topPInput'),
+              topKInput: $('#topKInput'),
+              repetitionPenaltyInput: $('#repetitionPenaltyInput'),
+              streamingEndpointInput: $('#streamingEndpointInput'),
+              nonStreamingEndpointInput: $('#nonStreamingEndpointInput'),
+              saveSettingsBtn: $('#saveSettingsBtn'),
+              toggleHistoryBtn: $('#toggleHistoryBtn'),
+              historyModal: $('#historyModal'),
+              closeHistoryModalBtn: $('#closeHistoryModalBtn'),
+              chatChangeList: $('#chatChangeList'),
+              historyPreview: $('#historyPreview'),
+              previewContent: $('#previewContent'),
+              diffContent: $('#diffContent'),
+              oldValueTime: $('#oldValueTime'),
+              oldValueDisplay: $('#oldValue .pl-2'),
+              oldLineNumbersDisplay: $('#oldValue .text-right'),
+              newValueTime: $('#newValueTime'),
+              newValueDisplay: $('#newValue .pl-2'),
+              newLineNumbersDisplay: $('#newValue .text-right'),
+              userMessageTemplate: $('#userMessageTemplate').html(),
+              assistantMessageTemplate: $('#assistantMessageTemplate').html(),
+              historyItemTemplate: $('#historyItemTemplate').html(),
+              historySectionTemplate: $('#historySectionTemplate').html(),
+              chatChangeRecordTemplate: $('#chatChangeRecordTemplate').html(),
+              notificationTemplate: $('#notificationTemplate').html(),
+              initialChatEmptyStateTemplate: $('#initialChatEmptyStateTemplate').html(),
+              historyListEmptyStateTemplate: $('#historyListEmptyStateTemplate').html(),
+              chatChangeListEmptyStateTemplate: $('#chatChangeListEmptyStateTemplate').html(),
+              chatTitle: $('#chatTitle'),
+          };
+          this.STATE.chats = JSON.parse(localStorage.getItem('chats')) || [];
+          this.ui.notification.init();
+          this._applySidebarStateBasedOnScreen();
+          this.ui.renderChatHistory();
+          if (this.STATE.chats.length > 0 && this.STATE.chats[0].id) {
+              this.data.loadChatById(this.STATE.chats[0].id);
+          } else {
+              this.data.createNewChat();
+          }
+          this.ui.updateStreamToggleVisualState();
+          this.STATE.currentUser = localStorage.getItem('currentUser');
+          if (!this.STATE.currentUser) {
+              this.ui.showUserLoginModal();
+          } else {
+              this.ui.updateUserProfileAvatar(this.STATE.currentUser);
+          }
+          this.eventHandlers.attachEventListeners();
+      }
+  }
+  let appInstance;
+  $(document).ready(() => {
+      appInstance = new App();
+      appInstance.init();
+  });
+</script>
 </body>
 
 </html>

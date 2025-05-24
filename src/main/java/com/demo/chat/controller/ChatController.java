@@ -51,8 +51,9 @@ public class ChatController {
 
     @PostMapping("/chat")
     public ChatResponse chat(@RequestBody ChatRequest request) throws InterruptedException {
-//        TimeUnit.MILLISECONDS.sleep(1500);
         log.debug("{}", request);
+
+        TimeUnit.MILLISECONDS.sleep(800);
 
         ChatResponse response = new ChatResponse();
         response.setResponse("<think></think>hello world " + LocalDateTime.now());

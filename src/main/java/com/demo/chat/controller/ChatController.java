@@ -58,7 +58,6 @@ public class ChatController {
         ChatResponse response = new ChatResponse();
         response.setResponse("<think></think>hello world " + LocalDateTime.now());
 //        response.setResponse("<think>你好啊!</think>hello world " + LocalDateTime.now());
-        response.setStatus("finish");
         return response;
     }
 
@@ -96,7 +95,6 @@ public class ChatController {
 
     @Data
     public static class ChatResponse {
-        private String status;
         private String response;
     }
 }

@@ -29,11 +29,14 @@ public class ChatController {
         executorService.execute(() -> {
             try {
                 TimeUnit.MILLISECONDS.sleep(500);
-                emitter.send("{\"delta\":\"<think>\",\"status\":\"delta\"}");
-                emitter.send("{\"delta\":\"你\",\"status\":\"delta\"}");
-                emitter.send("{\"delta\":\"好\",\"status\":\"delta\"}");
-                emitter.send("{\"delta\":\"！\",\"status\":\"delta\"}");
-                emitter.send("{\"delta\":\"</think>\",\"status\":\"delta\"}");
+
+                if (request.getSettings().isReasoning()) {
+                    emitter.send("{\"delta\":\"<think>\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"你\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"好\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"！\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"</think>\",\"status\":\"delta\"}");
+                }
                 emitter.send("{\"delta\":\"hello\",\"status\":\"delta\"}");
                 TimeUnit.MILLISECONDS.sleep(250);
                 emitter.send("{\"delta\":\" world\",\"status\":\"delta\"}");
@@ -57,8 +60,11 @@ public class ChatController {
         TimeUnit.MILLISECONDS.sleep(800);
 
         ChatResponse response = new ChatResponse();
-        response.setResponse("<think></think>hello world " + LocalDateTime.now());
-//        response.setResponse("<think>你好啊!</think>hello world " + LocalDateTime.now());
+        if (request.getSettings().isReasoning()) {
+            response.setResponse("<think>你好啊!</think>hello world " + LocalDateTime.now());
+        } else {
+            response.setResponse("你好啊! " + LocalDateTime.now());
+        }
         return response;
     }
 
@@ -80,6 +86,8 @@ public class ChatController {
             private String systemInstruction;
             @JsonProperty("isStreaming")
             private boolean isStreaming;
+            @JsonProperty("isReasoning")
+            private boolean isReasoning;
             private Float temperature;
             private Float topP;
             private Integer topK;

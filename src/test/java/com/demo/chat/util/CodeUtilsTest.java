@@ -8,13 +8,20 @@ import java.io.IOException;
 /**
  * Description of the file purpose.
  *
- * @author  zhen.ni 2025-06-01 13:00 
+ * @author zhen.ni 2025-06-01 13:00
  */
 public class CodeUtilsTest {
 
     @Test
-    public void cleanFile() throws IOException {
-        CodeUtils.clean(new File("D:\\Workspace\\chat-demo\\src\\main\\resources\\static\\chatbot.html"));
+    public void cleanFile() {
+        try {
+            CodeUtils.clean(new File("D:\\Workspace\\chat-demo\\src\\main\\resources\\static\\chat.html"));
+        } catch (IOException e) {
+        }
+        try {
+            CodeUtils.clean(new File("/Users/zhen/Documents/Workspace/java/chat-demo/src/main/resources/static/chat.html"));
+        } catch (IOException e) {
+        }
     }
 
     @Test

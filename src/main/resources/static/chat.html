@@ -1,0 +1,3619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>调试工具</title>
+  <script src="script/jquery@3.7.1.js"></script>
+  <script src="script/tailwindcss@3.4.16.js"></script>
+  <script src="script/marked@15.0.11.js"></script>
+  <link href="style/fontawesome.min.css" rel="stylesheet">
+  <style>
+    body {
+        font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+        color: #1d1d1f;
+    }
+
+    .is-hidden {
+        display: none !important;
+    }
+
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.35);
+    }
+
+    .sidebar {
+        background-color: #F2F2F7;
+        border-right: 1px solid #d2d2d7;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 300px;
+        overflow: auto;
+        z-index: 20;
+    }
+
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+
+    .main-content {
+        margin-left: 310px;
+        transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar.collapsed~.main-content {
+        margin-left: 0;
+    }
+
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .input-container {
+        max-width: 800px;
+        margin: 0 auto;
+        width: calc(100% - 28px);
+        display: flex;
+        align-items: center;
+        background-color: white;
+        padding: 8px 16px;
+    }
+
+    #message-input {
+        font-size: 15px;
+        resize: none;
+        overflow: hidden;
+        flex-grow: 1;
+    }
+
+    #message-input:focus {
+        outline: none;
+    }
+
+    #new-item-btn.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .common-transition {
+        transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.2s;
+    }
+
+    .common-transform-transition {
+        transition-property: transform;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        transition-duration: 0.15s;
+    }
+
+    .input-focus-style:focus {
+        border-color: #007aff !important;
+        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25) !important;
+        outline: none !important;
+    }
+
+    #send-btn {
+        position: absolute;
+        bottom: 4px;
+        right: 0px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    #send-btn:active:not(:disabled) {
+        transform: scale(0.9);
+        transition-duration: 0.05s !important;
+    }
+
+    #send-btn:disabled {
+        transform: scale(1);
+        opacity: 0.6 !important;
+        cursor: default;
+    }
+
+    #send-btn .fa-paper-plane {
+        display: inline-block;
+    }
+
+    #send-btn.sending .fa-paper-plane {
+        display: none;
+    }
+
+    #send-btn.sending .sending-spinner {
+        display: inline-block;
+    }
+
+    .sending-spinner {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+    }
+
+    .user-profile-btn {
+        background-color: #f0f0f0;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    .user-profile-btn:hover {
+        background-color: #e0e0e0;
+        transform: translateY(-1px);
+    }
+
+    .user-profile-btn:active {
+        transform: scale(0.98);
+        background-color: #d0d0d0;
+    }
+
+    .edit-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+        justify-content: flex-end;
+        position: absolute;
+        bottom: 18px;
+        right: 12px;
+    }
+
+    .edit-button {
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .edit-button:active {
+        transform: scale(0.95);
+    }
+
+    .save-button {
+        background-color: #007AFF;
+        color: white;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+
+    .save-button:hover {
+        background-color: #006FE6;
+    }
+
+    .cancel-button {
+        background-color: #E5F1FF;
+        color: #007aff;
+        border: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .cancel-button:hover {
+        background-color: white;
+    }
+
+    #start-chat-btn {
+        background-color: #007aff;
+        color: white;
+        border-radius: 10px;
+        padding: 12px 20px;
+        font-size: 17px;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+    }
+
+    #start-chat-btn:hover:not(:disabled) {
+        background-color: #006fe6;
+        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    }
+
+    #start-chat-btn:active:not(:disabled) {
+        transform: scale(0.95);
+        background-color: #005bb5;
+        transition-duration: 0.05s !important;
+        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.2);
+    }
+
+    #start-chat-btn:disabled {
+        background-color: #e5e5ea !important;
+        color: #b0b0b5 !important;
+        cursor: default;
+        box-shadow: none;
+    }
+
+    .edit-textarea {
+        padding: 10px 15px;
+        border-radius: 12px;
+        border: 1px solid #d2d2d7;
+        font-size: 15px;
+        min-height: 100px;
+        min-width: 250px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    #username-input {
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 16px;
+        border: 1px solid #d2d2d7;
+    }
+
+    .edit-name-input,
+    .edit-group-name-input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 1px solid #d2d2d7;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+
+    .edit-group-name-input {
+        font-size: 14px;
+        font-weight: 500;
+        flex-grow: 1;
+    }
+
+    .edit-textarea,
+    #username-input,
+    .edit-name-input,
+    .edit-group-name-input,
+    .settings-input,
+    .settings-panel select {}
+
+    .edit-textarea:focus,
+    #username-input:focus,
+    .edit-name-input:focus,
+    .edit-group-name-input:focus,
+    .settings-input:focus,
+    .settings-panel select:focus {}
+
+    #confirm-modal,
+    #user-login-modal {
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .modal-enter .modal-content {
+        animation: modalFadeIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    }
+
+    .modal-exit .modal-content {
+        animation: modalFadeOut 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    }
+
+    #confirm-modal.modal-enter,
+    #confirm-modal.modal-exit {
+        display: flex;
+    }
+
+    .notification-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 100;
+    }
+
+    .notification {
+        border-radius: 12px;
+        padding: 14px 18px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        max-width: 80%;
+        margin: 0 auto 14px auto;
+        display: flex;
+        align-items: center;
+        border: 1px solid;
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        min-width: 300px;
+        max-width: 500px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    .notification i {
+        margin-right: 8px;
+    }
+
+    .notification.success {
+        background-color: rgba(52, 199, 89, 0.15);
+        border-color: rgba(52, 199, 89, 0.25);
+        color: #34C759;
+    }
+
+    .notification.warning {
+        background-color: rgba(255, 204, 0, 0.15);
+        border-color: rgba(255, 204, 0, 0.25);
+        color: #FFCC00;
+    }
+
+    .notification.error {
+        background-color: rgba(255, 59, 48, 0.15);
+        border-color: rgba(255, 59, 48, 0.25);
+        color: #FF3B30;
+    }
+
+    .notification.info {
+        background-color: rgba(0, 122, 255, 0.15);
+        border-color: rgba(0, 122, 255, 0.25);
+        color: #007AFF;
+    }
+
+    #chat-container {
+        scroll-behavior: smooth;
+        padding: 16px;
+    }
+
+    .user-message {
+        background-color: #0090FF;
+        color: white;
+        border-radius: 18px 5px 18px 18px;
+        cursor: pointer;
+        padding: 5px 10px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        min-width: 80px;
+    }
+
+    .user-message:hover {
+        background-color: #0A84FF;
+    }
+
+    .user-message.no-hover-style {
+        cursor: default;
+        transition: none;
+        box-shadow: none;
+    }
+
+    .user-message.no-hover-style:hover {
+        background-color: #0090FF;
+    }
+
+    .assistant-message {
+        background-color: #E5E5EA;
+        border-radius: 5px 18px 18px 18px;
+        padding: 10px 15px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .assistant-message:hover {
+        background-color: #D8D8DC;
+    }
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        flex-shrink: 0;
+    }
+
+    .user-avatar,
+    .assistant-avatar {
+        background-color: #e5e5ea;
+        color: #636366;
+    }
+
+    .user-avatar-small {
+        background-color: #e5e5ea;
+        color: #636366;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 14px;
+    }
+
+    .user-avatar-large {
+        background-color: #e5e5ea;
+        color: #636366;
+        font-size: 48px;
+        font-weight: 700;
+        width: 92px;
+        height: 92px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+    }
+
+    .spinner {
+        color: #8e8e93;
+    }
+
+    .assistant-think-container,
+    .user-think-container {
+        border-radius: 10px;
+        padding: 8px 12px;
+        position: relative;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .assistant-think-container {
+        background-color: #EBEBF0;
+    }
+
+    .user-think-container {
+        background-color: #419CFF;
+    }
+
+    .assistant-think-content,
+    .user-think-content {
+        display: none;
+        padding: 6px 0;
+        font-size: 14px;
+    }
+
+    .assistant-think-content {
+        color: #333;
+    }
+
+    .user-think-content {
+        color: white;
+    }
+
+    .assistant-think-content.show,
+    .user-think-content.show {
+        display: block;
+    }
+
+    .assistant-think-toggle {
+        cursor: pointer;
+        font-size: 0.85em;
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+    }
+
+    .assistant-think-toggle i {
+        margin-right: 4px;
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .assistant-think-toggle.open i {
+        transform: rotate(90deg);
+    }
+
+    .user-think-toggle {
+        color: white;
+    }
+
+    .normal-content {}
+
+    .normal-content:first-child {
+        margin-top: 0;
+        border-top: none;
+        padding-top: 0;
+    }
+
+    .assistant-think-container+.normal-content,
+    .user-think-container+.normal-content {
+        padding-top: 10px;
+    }
+
+    .normal-content.is-empty-placeholder {
+        display: none;
+    }
+
+    .history-item {
+        margin-bottom: 4px;
+        padding: 10px 14px;
+        border-radius: 8px;
+    }
+
+    .history-item:hover {
+        background-color: rgba(0, 122, 255, 0.08);
+        cursor: pointer;
+    }
+
+    .history-item.active {
+        background-color: rgba(0, 122, 255, 0.12);
+        border-left: 3px solid #007aff;
+        font-weight: 600;
+        cursor: pointer;
+        padding-left: calc(14px - 3px);
+    }
+
+    .history-item.dragging {
+        opacity: 0.5;
+        border: 2px dashed #007aff;
+    }
+
+    .history-item .history-name {
+        font-size: 13px;
+    }
+
+    .history-item.editing .edit-name-input {}
+
+    .history-item.editing .history-name {}
+
+    .history-item-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .history-item:hover .history-item-actions {
+        opacity: 1;
+    }
+
+    .action-icon-button {
+        background: none;
+        border: none;
+        color: #86868b;
+        padding: 5px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+    }
+
+    .history-item-actions button {}
+
+    .history-item-actions .edit-btn:hover {
+        background-color: rgba(0, 0, 0, 0.07);
+        color: #1d1d1f;
+    }
+
+    .history-item-actions .copy-btn:hover {
+        background-color: rgba(0, 122, 255, 0.07);
+        color: #007aff;
+    }
+
+    .history-item-actions .delete-btn:hover {
+        background-color: rgba(255, 59, 48, 0.1);
+        color: #FF3B30;
+    }
+
+    .history-section {
+        margin-top: 12px;
+    }
+
+    .history-section-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #86868b;
+        text-transform: none;
+        letter-spacing: 0;
+        padding: 10px 14px;
+        margin-top: 8px;
+    }
+
+    .history-empty-state {
+        text-align: center;
+        color: #86868b;
+        padding: 24px 14px;
+        font-size: 14px;
+    }
+
+    .history-empty-icon {
+        font-size: 26px;
+        margin-bottom: 8px;
+    }
+
+    .history-group-item {
+        margin-bottom: 8px;
+        background-color: transparent;
+        border-radius: 8px;
+    }
+
+    .group-header {
+        display: flex;
+        align-items: center;
+        padding: 8px 10px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        border-radius: 6px;
+    }
+
+    .history-group-item:hover .group-header:not(.editing-group-name) {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    .group-header.editing-group-name {
+        background-color: rgba(0, 122, 255, 0.05);
+    }
+
+    .group-toggle-icon {
+        color: #86868b;
+        margin-right: 8px;
+        transition: transform 0.2s ease;
+        padding: 4px;
+    }
+
+    .group-header.expanded .group-toggle-icon {
+        transform: rotate(90deg);
+    }
+
+    .group-name {
+        flex-grow: 1;
+        font-size: 14px;
+        font-weight: 500;
+        color: #1d1d1f;
+        padding: 4px 0;
+    }
+
+    .group-header.editing-group-name .group-name {}
+
+    .group-actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        margin-left: auto;
+    }
+
+    .group-header:hover .group-actions,
+    .group-header.editing-group-name .group-actions {
+        opacity: 1;
+    }
+
+    .group-actions button {}
+
+    .group-actions button:hover:not(.delete-group-btn) {
+        background-color: rgba(0, 0, 0, 0.07);
+        color: #1d1d1f;
+    }
+
+    .group-actions .delete-group-btn:hover {
+        background-color: rgba(255, 59, 48, 0.1);
+        color: #FF3B30;
+    }
+
+    .group-chat-list {
+        padding-left: 22px;
+        margin-top: 4px;
+    }
+
+    .history-group-item.drag-over-group .group-header {
+        background-color: rgba(0, 122, 255, 0.15) !important;
+        border: 1px dashed #007aff;
+    }
+
+    .new-item-dropdown-container {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    #new-item-btn {
+        background-color: #3B82F6;
+        color: white;
+        padding: 1.5rem 0.875rem;
+        border-radius: 15px;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        height: 40px;
+        border: none;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        width: auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+    }
+
+    #new-item-btn:hover {
+        background-color: #006fe6;
+    }
+
+    #new-item-btn:active {
+        background-color: #005bb5;
+    }
+
+    #new-item-btn .main-action-area {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    #new-item-btn .main-action-area .fas {
+        margin-right: 8px;
+    }
+
+    #new-item-dropdown-trigger-area {
+        padding: 10px 10px;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        border-left: none;
+        margin-left: 8px;
+        cursor: pointer;
+    }
+
+    #new-item-dropdown-trigger {
+        font-size: 0.8em;
+    }
+
+    #new-item-options {
+        background-color: #ffffff;
+        border: 1px solid #d2d2d7;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+        width: 150px;
+        min-width: max-content;
+        position: absolute;
+        top: 100%;
+        margin-top: 4px;
+    }
+
+    #new-item-options a {
+        display: block;
+        padding: 10px 16px;
+        font-size: 0.9rem;
+        color: #1d1d1f;
+        text-decoration: none;
+        transition: background-color 0.15s ease;
+    }
+
+    #new-item-options a:hover {
+        background-color: rgba(0, 122, 255, 0.08);
+        color: #007aff;
+    }
+
+    #new-item-options a i {
+        margin-right: 10px;
+        width: 16px;
+        text-align: center;
+    }
+
+    #new-item-options a[data-action='new-group'] {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        height: 40px;
+        padding: 1.5rem 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    .settings-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 420px;
+        min-width: 420px;
+        max-width: 550px;
+        overflow: auto;
+        background-color: white;
+        z-index: 40;
+        transform: translateX(100%);
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        border-left: none;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
+    }
+
+    .settings-panel.open {
+        transform: translateX(0);
+    }
+
+    .settings-header {
+        padding: 20px;
+        border-bottom: 1px solid #e5e5ea;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .settings-content {
+        padding: 20px;
+        overflow-y: auto;
+        height: calc(100% - 65px - 70px);
+    }
+
+    .settings-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.35);
+        z-index: 35;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(4px);
+    }
+
+    .settings-overlay.open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .settings-form-group {
+        margin-bottom: 20px;
+    }
+
+    .settings-label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #1d1d1f;
+    }
+
+    .settings-input,
+    .settings-panel select {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    #chat-search-input {
+        width: 100%;
+        font-size: 14px;
+        border: none;
+    }
+
+    #chat-search-input:focus {
+        outline: none;
+    }
+
+    #clear-search-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        transition: color 0.2s ease;
+    }
+
+    #clear-search-btn:hover {
+        color: #333;
+    }
+
+    .sidebar .relative.flex.items-center {
+        background-color: #E5E5EA;
+        border-radius: 10px;
+        padding: 4px 0;
+    }
+
+    .settings-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .settings-param-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .settings-param-group {
+        margin-bottom: 12px;
+    }
+
+    .settings-tabs {
+        display: flex;
+        padding: 6px;
+        background-color: #e5e5ea;
+        border-radius: 10px;
+        margin: 20px;
+        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+    }
+
+    .settings-tabs .tab-button {
+        flex: 1;
+        padding: 8px 12px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #636366;
+        background-color: transparent;
+        border: none;
+        border-radius: 7px;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .settings-tabs .tab-button.active {
+        background-color: white;
+        color: #1d1d1f;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .settings-tabs .tab-button:hover:not(.active) {
+        background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    .settings-details summary {
+        cursor: pointer;
+        padding: 10px 0;
+        font-weight: 600;
+        font-size: 15px;
+        color: #1d1d1f;
+        display: flex;
+        align-items: center;
+        list-style: none;
+    }
+
+    .settings-details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .settings-details summary:before {
+        content: '\f078';
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        margin-right: 8px;
+        transition: transform 0.2s ease;
+    }
+
+    .settings-details[open] summary:before {
+        transform: rotate(180deg);
+    }
+
+    .settings-details-content {
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    .settings-panel button {
+        border-radius: 10px;
+    }
+
+    .settings-panel button:active:not(:disabled) {
+        transform: scale(0.96);
+    }
+
+    #save-settings-btn {
+        padding: 12px 18px;
+        font-weight: 600;
+    }
+
+    #save-settings-btn:hover:not(:disabled) {
+        background-color: #0056b3;
+    }
+
+    .stream-toggle {
+        position: relative;
+        display: inline-block;
+        width: 52px;
+        height: 30px;
+    }
+
+    .stream-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .stream-toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e5e5ea;
+        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 30px;
+    }
+
+    .stream-toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 2px;
+        bottom: 2px;
+        background-color: white;
+        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stream-toggle input:checked+.stream-toggle-slider {
+        background-color: #34C759;
+    }
+
+    .stream-toggle input:checked+.stream-toggle-slider:before {
+        transform: translateX(22px);
+    }
+
+    .stream-toggle-text {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        font-weight: 600;
+        color: #fff;
+        pointer-events: none;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stream-toggle-text.on {
+        left: 7px;
+        opacity: 0;
+    }
+
+    .stream-toggle-text.off {
+        right: 7px;
+        opacity: 1;
+    }
+
+    .stream-toggle input:checked~.stream-toggle-text.on {
+        opacity: 1;
+    }
+
+    .stream-toggle input:checked~.stream-toggle-text.off {
+        opacity: 0;
+    }
+
+    .stream-toggle-tooltip {
+        position: absolute;
+        bottom: -24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #1d1d1f;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stream-toggle:hover .stream-toggle-tooltip {
+        opacity: 1;
+    }
+
+    .model-selector {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .model-selector-btn {
+        background-color: white;
+        border: 1px solid #d2d2d7;
+        border-radius: 10px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .model-selector-btn:hover {
+        background-color: #f5f5f7;
+    }
+
+    .model-selector-options {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        background-color: white;
+        border: 1px solid #d2d2d7;
+        border-radius: 12px;
+        width: 100%;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        z-index: 10;
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+        transform-origin: top;
+        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        pointer-events: none;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .model-selector.open .model-selector-options {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    .model-selector-option {
+        padding: 12px 16px;
+        cursor: pointer;
+        margin: 4px 8px;
+        border-radius: 8px;
+    }
+
+    .model-selector-option:hover {
+        background-color: rgba(0, 122, 255, 0.1);
+    }
+
+    .model-selector-option.selected {
+        background-color: rgba(0, 122, 255, 0.1);
+        border-left: 3px solid #007aff;
+        font-weight: 600;
+        padding-left: calc(16px - 3px);
+    }
+
+    .model-name {
+        font-weight: 600;
+    }
+
+    .model-description {
+        font-size: 12px;
+        color: #86868b;
+        margin-top: 4px;
+    }
+
+    #settings-action-menu {}
+
+    #settings-action-menu a {
+        text-decoration: none;
+    }
+
+    #settings-action-menu a i {
+        width: 1.25em;
+    }
+
+    .fa-chevron-up.rotate-180 {
+        transform: rotate(180deg);
+    }
+
+    .fa-chevron-down.rotate-180 {
+        transform: rotate(180deg);
+    }
+
+    #settings-action-menu a:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+        /* Light grey background on hover */
+        color: #1d1d1f;
+        /* Darker text color on hover */
+    }
+
+    .settings-action-menu-separator {
+        height: 1px;
+        background-color: rgba(209, 213, 219, 0.7);
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .sidebar {
+            width: 100%;
+            position: fixed;
+            z-index: 100;
+            transform: translateX(-100%);
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar:not(.collapsed) {
+            transform: translateX(0);
+        }
+
+        .main-content {
+            margin-left: 0 !important;
+        }
+
+        #chat-container {
+            padding: 1rem !important;
+        }
+
+        .input-container {
+            width: 100% !important;
+            padding: 0.75rem 0.75rem !important;
+        }
+
+        .input-container .ml-2 {
+            margin-left: 0.5rem !important;
+        }
+
+        .input-container .md\:ml-3 {
+            margin-left: 0.5rem !important;
+        }
+
+        #message-input {
+            width: 100%;
+        }
+
+        #send-btn {
+            width: 100%;
+            margin-left: 0 !important;
+            height: 44px;
+        }
+
+        .user-message,
+        .assistant-message-wrapper {
+            max-width: 92%;
+        }
+
+        .settings-panel {
+            width: 100%;
+            min-width: unset;
+            max-width: unset;
+            border-left: none;
+        }
+
+        .settings-param-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .settings-tabs {
+            margin: 1rem;
+        }
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes modalFadeIn {
+        0% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    @keyframes modalFadeOut {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        100% {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+    }
+  </style>
+  <script defer>
+    const APP_CONSTANTS = {
+        STORAGE_KEYS: {
+            CHATS: 'chats',
+            GROUPS: 'groups',
+            CURRENT_CHAT_ID: 'currentChatId',
+            CURRENT_USER: 'currentUser',
+            SIDEBAR_MOBILE_STATE: 'sidebarMobileState',
+            SIDEBAR_DESKTOP_STATE: 'sidebarDesktopState',
+            DRAFT_MESSAGE: 'draftMessage'
+        },
+        MODAL_TYPES: {
+            CHAT_DELETE: 'chat',
+            GROUP_DELETE: 'group'
+        },
+        SETTINGS_TABS: {
+            ASSISTANT: 'assistant',
+            USER: 'user'
+        },
+        NEW_CHAT_DEFAULT_NAME: "新对话",
+        NEW_GROUP_DEFAULT_NAME: "新分组",
+        AUTO_REPLY_PROMPT: "请根据上下文回答问题",
+        CHAT_NAME_MAX_LENGTH: 8
+    };
+    const windowsLocation = window.location.protocol + '//' + window.location.host;
+    const DEFAULT_ASSISTANT_SETTINGS = {
+        model: "community-finance-qwen3",
+        isStreaming: true,
+        isReasoning: false,
+        systemInstruction: "",
+        temperature: 0.9,
+        topP: 0.8,
+        topK: 15,
+        repetitionPenalty: 1.0,
+        streamingEndpoint: windowsLocation + "/chat/streaming",
+        nonStreamingEndpoint: windowsLocation + "/chat"
+    };
+    const DEFAULT_USER_SETTINGS = {
+        model: "community-finance-qwen3",
+        isStreaming: true,
+        isReasoning: false,
+        systemInstruction: "",
+        temperature: 0.5,
+        topP: 0.5,
+        topK: 10,
+        repetitionPenalty: 1.5,
+        streamingEndpoint: windowsLocation + "/chat/streaming",
+        nonStreamingEndpoint: windowsLocation + "/chat"
+    };
+    const DEFAULT_MODEL_LIST = {
+        'community-finance-qwen3': { name: 'community-finance-qwen3', description: "Qwen3" },
+        'community-finance-qwen-72b': { name: 'community-finance-qwen-72b', description: "PnganGPT" },
+        'community-finance-ai': { name: 'community-finance-ai', description: "DeepSeek R1 32B" }
+    };
+    (function () {
+        class Utils {
+            static generateUuid() {
+                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+                    const r = Math.random() * 16 | 0;
+                    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+            }
+            static getEffectiveSetting(currentSettings, defaultSettings, key) {
+                return currentSettings && currentSettings[key] !== undefined ? currentSettings[key] : defaultSettings[key];
+            }
+            static groupChatsByTime(chatsToGroup) {
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                const last7Days = new Date(today); last7Days.setDate(last7Days.getDate() - 7);
+                const last30Days = new Date(today); last30Days.setDate(last30Days.getDate() - 30);
+                const grouped = { today: [], yesterday: [], last7Days: [], last30Days: [], older: [] };
+                chatsToGroup.forEach(chat => {
+                    const chatDate = new Date(chat.createdAt);
+                    if (chatDate >= today) grouped.today.push(chat);
+                    else if (chatDate >= yesterday) grouped.yesterday.push(chat);
+                    else if (chatDate >= last7Days) grouped.last7Days.push(chat);
+                    else if (chatDate >= last30Days) grouped.last30Days.push(chat);
+                    else grouped.older.push(chat);
+                });
+                return grouped;
+            }
+            static debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func.apply(this, args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+            static formatTimestamp(isoString) {
+                if (!isoString) return '';
+                try {
+                    return new Date(isoString).toLocaleString('zh-CN', {
+                        year: 'numeric', month: 'numeric', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit',
+                        hour12: false
+                    });
+                } catch (e) {
+                    console.error("Error formatting timestamp:", isoString, e);
+                    return '';
+                }
+            }
+        }
+        class NotificationManager {
+            constructor(app) {
+                this.app = app;
+                this.container = null;
+                this.icons = {
+                    success: 'fa-check-circle',
+                    warning: 'fa-exclamation-triangle',
+                    error: 'fa-exclamation-circle',
+                    info: 'fa-info-circle'
+                };
+            }
+            init() {
+                const notificationContainerTemplateHTML = this.app.DOM.notificationContainerTemplateHTML;
+                if (notificationContainerTemplateHTML) {
+                    this.container = $(notificationContainerTemplateHTML).appendTo('body');
+                } else {
+                    console.error("Notification container HTML template not found. Creating div programmatically.");
+                    this.container = $('<div class="notification-container"></div>').appendTo('body');
+                }
+            }
+            show(message, type = 'info', duration = 3000) {
+                if (!this.container) {
+                    console.error("Notification container not initialized.");
+                    return;
+                }
+                const notificationElement = $(this.app.DOM.notificationTemplate)
+                    .addClass(type)
+                    .find('i').addClass(this.icons[type] || this.icons.info).end()
+                    .find('span').text(message).end()
+                    .appendTo(this.container);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        notificationElement.addClass('show');
+                    });
+                });
+                setTimeout(() => {
+                    notificationElement.removeClass('show');
+                    setTimeout(() => {
+                        notificationElement.remove();
+                    }, 300);
+                }, duration);
+            }
+            success(message, duration = 3000) { this.show(message, 'success', duration); }
+            error(message, duration = 3000) { this.show(message, 'error', duration); }
+            warning(message, duration = 3000) { this.show(message, 'warning', duration); }
+            info(message, duration = 3000) { this.show(message, 'info', duration); }
+        }
+        class DataManager {
+            constructor(app) {
+                this.app = app;
+            }
+            saveState() {
+                localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.CHATS, JSON.stringify(this.app.STATE.chats));
+                localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.GROUPS, JSON.stringify(this.app.STATE.groups));
+                localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.CURRENT_CHAT_ID, this.app.STATE.currentChatId);
+            }
+            loadGroups() {
+                this.app.STATE.groups = JSON.parse(localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.GROUPS)) || [];
+                this.app.STATE.groups.forEach(group => {
+                    if (typeof group.isExpanded === 'undefined') {
+                        group.isExpanded = true;
+                    }
+                });
+            }
+            getCurrentChat() {
+                let { currentChatId, chats } = this.app.STATE;
+                let chat = chats.find(c => c.id === currentChatId);
+                if (!chat && currentChatId) {
+                    console.warn("Current chat ID not found in chats list, creating a shell.", currentChatId);
+                    chat = {
+                        id: currentChatId,
+                        name: APP_CONSTANTS.NEW_CHAT_DEFAULT_NAME,
+                        settings: $.extend(true, {}, DEFAULT_ASSISTANT_SETTINGS),
+                        userSettings: $.extend(true, {}, DEFAULT_USER_SETTINGS),
+                        messages: [],
+                        createdAt: new Date().toISOString(),
+                        groupId: null
+                    };
+                    chats.push(chat);
+                }
+                if (chat && !chat.userSettings) {
+                    chat.userSettings = $.extend(true, {}, DEFAULT_USER_SETTINGS);
+                }
+                if (chat && typeof chat.groupId === 'undefined') {
+                    chat.groupId = null;
+                }
+                if (chat && chat.settings && typeof chat.settings.isReasoning === 'undefined') {
+                    chat.settings.isReasoning = DEFAULT_ASSISTANT_SETTINGS.isReasoning;
+                }
+                if (chat && chat.userSettings && typeof chat.userSettings.isReasoning === 'undefined') {
+                    chat.userSettings.isReasoning = DEFAULT_USER_SETTINGS.isReasoning;
+                }
+                return chat;
+            }
+            _getActiveSettingsContext(forUserTab = null) {
+                const chat = this.getCurrentChat();
+                const isUser = (forUserTab !== null) ? forUserTab : (this.app.STATE.currentSettingsTab === APP_CONSTANTS.SETTINGS_TABS.USER);
+                if (!chat) {
+                    return {
+                        current: {},
+                        defaultSettings: isUser ? DEFAULT_USER_SETTINGS : DEFAULT_ASSISTANT_SETTINGS,
+                        settingsKey: isUser ? 'userSettings' : 'settings',
+                        isUser: isUser
+                    };
+                }
+                let currentSettings = isUser ? chat.userSettings : chat.settings;
+                const defaultSettings = isUser ? DEFAULT_USER_SETTINGS : DEFAULT_ASSISTANT_SETTINGS;
+                if (!currentSettings) {
+                    currentSettings = $.extend(true, {}, defaultSettings);
+                    if (isUser) chat.userSettings = currentSettings; else chat.settings = currentSettings;
+                } else {
+                    for (const key in defaultSettings) {
+                        if (typeof currentSettings[key] === 'undefined') {
+                            currentSettings[key] = defaultSettings[key];
+                        }
+                    }
+                }
+                if (isUser) {
+                    return {
+                        current: currentSettings,
+                        defaultSettings: DEFAULT_USER_SETTINGS,
+                        settingsKey: 'userSettings',
+                        isUser: true
+                    };
+                } else {
+                    return {
+                        current: currentSettings,
+                        defaultSettings: DEFAULT_ASSISTANT_SETTINGS,
+                        settingsKey: 'settings',
+                        isUser: false
+                    };
+                }
+            }
+            loadChatSettings() {
+                const { systemInstructionInput, temperatureInput, topPInput, topKInput, repetitionPenaltyInput, streamingToggle, reasoningToggle, streamingEndpointInput, nonStreamingEndpointInput } = this.app.DOM;
+                const { current, defaultSettings } = this._getActiveSettingsContext();
+                systemInstructionInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'systemInstruction'));
+                temperatureInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'temperature'));
+                topPInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'topP'));
+                topKInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'topK'));
+                repetitionPenaltyInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'repetitionPenalty'));
+                streamingToggle.prop('checked', Utils.getEffectiveSetting(current, defaultSettings, 'isStreaming'));
+                if (reasoningToggle && reasoningToggle.length) {
+                    reasoningToggle.prop('checked', Utils.getEffectiveSetting(current, defaultSettings, 'isReasoning'));
+                }
+                streamingEndpointInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'streamingEndpoint')).attr('placeholder', defaultSettings.streamingEndpoint);
+                nonStreamingEndpointInput.val(Utils.getEffectiveSetting(current, defaultSettings, 'nonStreamingEndpoint')).attr('placeholder', defaultSettings.nonStreamingEndpoint);
+                this.app.STATE.currentModel = Utils.getEffectiveSetting(current, defaultSettings, 'model');
+                this.app.ui.updateStreamToggleVisualState();
+                this.app.ui.updateSelectedModelDisplay(this.app.STATE.currentModel);
+            }
+            saveCurrentChatSettings() {
+                const { selectedModelDisplay, streamingToggle, reasoningToggle, systemInstructionInput, temperatureInput, topPInput, topKInput, repetitionPenaltyInput, streamingEndpointInput, nonStreamingEndpointInput, settingsPanel } = this.app.DOM;
+                const chat = this.getCurrentChat();
+                if (!chat) {
+                    this.app.ui.notification.error('没有活动的对话来保存设置。');
+                    return;
+                }
+                const { defaultSettings, settingsKey, isUser } = this._getActiveSettingsContext();
+                const oldSettings = $.extend(true, {}, chat[settingsKey] || {});
+                let newSettings = {
+                    model: selectedModelDisplay.text(),
+                    isStreaming: streamingToggle.is(':checked'),
+                    isReasoning: reasoningToggle && reasoningToggle.length ? reasoningToggle.is(':checked') : Utils.getEffectiveSetting(oldSettings, defaultSettings, 'isReasoning'),
+                    systemInstruction: systemInstructionInput.val(),
+                    temperature: parseFloat(temperatureInput.val()),
+                    topP: parseFloat(topPInput.val()),
+                    topK: parseInt(topKInput.val()),
+                    repetitionPenalty: parseFloat(repetitionPenaltyInput.val()),
+                    streamingEndpoint: streamingEndpointInput.val(),
+                    nonStreamingEndpoint: nonStreamingEndpointInput.val()
+                };
+                newSettings.temperature = !isNaN(newSettings.temperature) ? newSettings.temperature : defaultSettings.temperature;
+                newSettings.topP = !isNaN(newSettings.topP) ? newSettings.topP : defaultSettings.topP;
+                newSettings.topK = !isNaN(newSettings.topK) && newSettings.topK > 0 ? newSettings.topK : defaultSettings.topK;
+                newSettings.repetitionPenalty = !isNaN(newSettings.repetitionPenalty) ? newSettings.repetitionPenalty : defaultSettings.repetitionPenalty;
+                newSettings.streamingEndpoint = newSettings.streamingEndpoint || defaultSettings.streamingEndpoint;
+                newSettings.nonStreamingEndpoint = newSettings.nonStreamingEndpoint || defaultSettings.nonStreamingEndpoint;
+                if (JSON.stringify(oldSettings) !== JSON.stringify(newSettings)) {
+                    chat[settingsKey] = newSettings;
+                    this.saveState();
+                    const notificationMessage = isUser ? '用户设置已保存' : '助手设置已保存';
+                    this.app.ui.notification.success(notificationMessage);
+                    if (!isUser) {
+                        this.app.STATE.currentModel = newSettings.model;
+                    }
+                    if (settingsPanel.hasClass('open') && this.app.STATE.currentSettingsTab === (isUser ? APP_CONSTANTS.SETTINGS_TABS.USER : APP_CONSTANTS.SETTINGS_TABS.ASSISTANT)) {
+                        this.loadChatSettings();
+                    }
+                } else {
+                    this.app.ui.notification.warning('设置未更改');
+                }
+            }
+            createNewChat(groupId = null) {
+                const { chats } = this.app.STATE;
+                const { chatName } = this.app.DOM;
+                const newChatId = Utils.generateUuid();
+                const newChat = {
+                    id: newChatId,
+                    name: APP_CONSTANTS.NEW_CHAT_DEFAULT_NAME,
+                    settings: $.extend(true, {}, DEFAULT_ASSISTANT_SETTINGS),
+                    userSettings: $.extend(true, {}, DEFAULT_USER_SETTINGS),
+                    messages: [],
+                    createdAt: new Date().toISOString(),
+                    groupId: groupId
+                };
+                chats.unshift(newChat);
+                this.app.STATE.currentChatId = newChatId;
+                this.saveState();
+                this.app.ui.renderChatHistory();
+                this.loadChatById(newChat.id);
+                if (chatName) chatName.text(newChat.name);
+            }
+            loadChatById(chatId) {
+                const { chats } = this.app.STATE;
+                const { settingsPanel, chatName, messageInput } = this.app.DOM;
+                let chat = chats.find(c => c.id === chatId);
+                if (!chat) {
+                    console.error("Chat not found for ID:", chatId, ". Attempting to load first available or create new.");
+                    if (chats.length > 0) {
+                        const sortedChats = [...this.app.STATE.chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                        this.loadChatById(sortedChats[0].id);
+                    } else {
+                        this.createNewChat();
+                    }
+                    return;
+                }
+                if (!chat.settings) chat.settings = $.extend(true, {}, DEFAULT_ASSISTANT_SETTINGS);
+                else chat.settings = $.extend(true, {}, DEFAULT_ASSISTANT_SETTINGS, chat.settings);
+                if (!chat.userSettings) chat.userSettings = $.extend(true, {}, DEFAULT_USER_SETTINGS);
+                else chat.userSettings = $.extend(true, {}, DEFAULT_USER_SETTINGS, chat.userSettings);
+                this.app.STATE.currentChatId = chatId;
+                this.app.ui.renderChatMessages(chat.messages);
+                const currentSearchTerm = this.app.DOM.chatSearchInput.val().trim();
+                if (currentSearchTerm) {
+                    this.app._filterHistory(currentSearchTerm);
+                } else {
+                    this.app.ui.renderChatHistory();
+                }
+                this.app.STATE.isNewChat = chat.messages.length === 0;
+                const assistantContext = this._getActiveSettingsContext(false);
+                this.app.STATE.currentModel = Utils.getEffectiveSetting(chat.settings || {}, assistantContext.defaultSettings, 'model');
+                this.loadChatSettings();
+                if (chatName) chatName.text(chat.name);
+                this.saveState();
+                if (messageInput) messageInput.trigger('focus');
+            }
+            confirmChatDeletion() {
+                let { chatToDelete, chats, currentChatId } = this.app.STATE;
+                if (!chatToDelete) {
+                    this.app.ui.hideConfirmationModal();
+                    return;
+                }
+                this.app.STATE.chats = chats.filter(chat => chat.id !== chatToDelete);
+                this.saveState();
+                if (currentChatId === chatToDelete) {
+                    this.app.STATE.currentChatId = null;
+                    if (this.app.STATE.chats.length > 0) {
+                        const sortedChats = [...this.app.STATE.chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                        this.loadChatById(sortedChats[0].id);
+                    } else {
+                        this.createNewChat();
+                    }
+                }
+                this.app.ui.renderChatHistory();
+                this.app.ui.hideConfirmationModal();
+                this.app.STATE.chatToDelete = null;
+            }
+            resendUserMessage(messageIndex) {
+                const chat = this.getCurrentChat();
+                if (!chat || messageIndex < 0 || messageIndex >= chat.messages.length) return;
+                const messageToResend = chat.messages[messageIndex];
+                if (messageToResend.role !== 'user') return;
+                chat.messages = chat.messages.slice(0, messageIndex + 1);
+                let autoReplyMetaForResend = null;
+                if (messageToResend.isAutoReplyOrigin === true) {
+                    autoReplyMetaForResend = {
+                        elapsedTime: messageToResend.generationElapsedTime || 0,
+                        isStreaming: messageToResend.generationIsStreaming,
+                        model: messageToResend.generationModel,
+                    };
+                }
+                this.saveState();
+                this.app.ui.renderChatMessages(chat.messages);
+                this.app.api.sendChatMessage(messageToResend.content, true, autoReplyMetaForResend);
+            }
+            copyChat(chatIdToCopy) {
+                const originalChat = this.app.STATE.chats.find(c => c.id === chatIdToCopy);
+                if (!originalChat) {
+                    this.app.ui.notification.error('未找到要复制的对话。');
+                    return;
+                }
+                const newChatId = Utils.generateUuid();
+                const newChatName = `${originalChat.name}_COPY`;
+                const copiedChat = {
+                    id: newChatId,
+                    name: newChatName,
+                    settings: $.extend(true, {}, originalChat.settings),
+                    userSettings: $.extend(true, {}, originalChat.userSettings),
+                    messages: $.extend(true, [], originalChat.messages),
+                    createdAt: new Date().toISOString(),
+                    groupId: originalChat.groupId
+                };
+                this.app.STATE.chats.unshift(copiedChat);
+                this.saveState();
+                this.app.ui.renderChatHistory();
+                this.app.ui.notification.success(`对话 "${originalChat.name}" 已复制为 "${newChatName}"`);
+                this.loadChatById(newChatId);
+            }
+            createGroup(name = APP_CONSTANTS.NEW_GROUP_DEFAULT_NAME) {
+                const newGroup = {
+                    id: Utils.generateUuid(),
+                    name: name,
+                    createdAt: new Date().toISOString(),
+                    isExpanded: true
+                };
+                this.app.STATE.groups.push(newGroup);
+                this.app.STATE.groups.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                this.saveState();
+                this.app.ui.renderChatHistory();
+                this.app.ui.notification.success(`分组 "${name}" 已创建`);
+                return newGroup;
+            }
+            renameGroup(groupId, newName) {
+                const group = this.app.STATE.groups.find(g => g.id === groupId);
+                if (group && newName.trim() !== '' && group.name !== newName.trim()) {
+                    group.name = newName.trim();
+                    this.saveState();
+                    this.app.ui.renderChatHistory();
+                    this.app.ui.notification.success(`分组已重命名为 "${newName}"`);
+                } else if (group && newName.trim() === '') {
+                    this.app.ui.renderChatHistory();
+                }
+            }
+            deleteGroup(groupId) {
+                const groupName = this.app.STATE.groups.find(g => g.id === groupId)?.name || '该分组';
+                this.app.STATE.chats.forEach(chat => {
+                    if (chat.groupId === groupId) {
+                        chat.groupId = null;
+                    }
+                });
+                this.app.STATE.groups = this.app.STATE.groups.filter(g => g.id !== groupId);
+                this.saveState();
+                this.app.ui.renderChatHistory();
+                this.app.ui.notification.success(`分组 "${groupName}" 已删除`);
+                this.app.STATE.groupToDelete = null;
+            }
+            assignChatToGroup(chatId, groupId) {
+                const chat = this.app.STATE.chats.find(c => c.id === chatId);
+                if (chat) {
+                    chat.groupId = groupId;
+                    this.saveState();
+                    this.app.ui.renderChatHistory();
+                    if (groupId) {
+                        const group = this.app.STATE.groups.find(g => g.id === groupId);
+                        if (group && !group.isExpanded) {
+                            this.toggleGroupExpansion(groupId);
+                        }
+                        this.app.ui.notification.info(`对话已移至分组 "${group ? group.name : '未知'}"`);
+                    } else {
+                        this.app.ui.notification.info(`对话已移出分组`);
+                    }
+                }
+            }
+            toggleGroupExpansion(groupId) {
+                const group = this.app.STATE.groups.find(g => g.id === groupId);
+                if (group) {
+                    group.isExpanded = !group.isExpanded;
+                    this.saveState();
+                    const groupElement = this.app.DOM.historyList.find(`.history-group-item[data-group-id="${groupId}"]`);
+                    if (groupElement.length) {
+                        const groupHeader = groupElement.find('.group-header');
+                        groupHeader.toggleClass('expanded', group.isExpanded);
+                        groupElement.find('.group-chat-list').slideToggle(200);
+                    }
+                }
+            }
+            confirmGroupDeletion() {
+                if (this.app.STATE.groupToDelete) {
+                    this.deleteGroup(this.app.STATE.groupToDelete);
+                }
+                this.app.ui.hideConfirmationModal();
+            }
+            clearCurrentChat() {
+                const chat = this.getCurrentChat();
+                if (chat) {
+                    if (chat.messages.length === 0) {
+                        this.app.ui.notification.success('对话已清空');
+                        return;
+                    }
+                    chat.messages = [];
+                    this.saveState();
+                    this.app.ui.renderChatMessages(chat.messages);
+                    this.app.STATE.isNewChat = true;
+                    this.app.ui.notification.success('对话已清空');
+                }
+            }
+            exportChats() {
+                const chatsData = JSON.parse(localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.CHATS)) || [];
+                const groupsData = JSON.parse(localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.GROUPS)) || [];
+                const exportContent = {
+                    groups: groupsData,
+                    chats: chatsData
+                };
+                const exportJsonString = JSON.stringify(exportContent, null, 2); // Pretty print JSON
+                if (chatsData.length > 0 || groupsData.length > 0) {
+                    const blob = new Blob([exportJsonString], { type: 'application/json;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    a.download = `chat_data_export_${timestamp}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    this.app.ui.notification.success('对话数据已导出');
+                } else {
+                    this.app.ui.notification.warning('没有对话可导出');
+                }
+            }
+        }
+        class UIManager {
+            constructor(app) {
+                this.app = app;
+                this.notification = new NotificationManager(this.app);
+                this.draggedChatId = null;
+            }
+            _showModal(modalElement, title, message, confirmActionCallback, confirmButtonText = "删除") {
+                modalElement.find('h3').text(title);
+                modalElement.find('p.modal-message-content').text(message);
+                const confirmBtn = modalElement.find('.confirm-action-btn');
+                confirmBtn.text(confirmButtonText);
+                confirmBtn.off('click');
+                if (confirmActionCallback) {
+                    confirmBtn.on('click', confirmActionCallback);
+                }
+                modalElement.removeClass('is-hidden hidden modal-exit').addClass('modal-enter');
+            }
+            _hideModal(modalElement, onHiddenCallback) {
+                modalElement.removeClass('modal-enter').addClass('modal-exit');
+                modalElement.one('animationend', () => {
+                    modalElement.addClass('is-hidden hidden').removeClass('modal-exit');
+                    if (onHiddenCallback) onHiddenCallback();
+                });
+            }
+            _processThinkContent(content, role) {
+                const { collapsibleThinkTemplateHTML } = this.app.DOM;
+                const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/);
+                let originalRestContent = thinkMatch ? content.replace(thinkMatch[0], '').trim() : content.trim();
+                let thinkBlockHTML = '';
+                if (thinkMatch) {
+                    const thinkContent = thinkMatch[1].trim();
+                    if (thinkContent) {
+                        if (!collapsibleThinkTemplateHTML) {
+                            console.error("Collapsible think template HTML not found. Building HTML programmatically.");
+                            const thinkContainerClass = role === 'user' ? 'user-think-container' : 'assistant-think-container';
+                            const thinkContentClass = role === 'user' ? 'user-think-content' : 'assistant-think-content';
+                            const thinkToggleClass = 'assistant-think-toggle' + (role === 'user' ? ' user-think-toggle' : '');
+                            thinkBlockHTML = `
+                <div class="${thinkContainerClass}">
+                  <div class="${thinkToggleClass}">
+                    <i class="fas fa-chevron-right"></i><span>深度思考</span>
+                  </div>
+                  <div class="${thinkContentClass}">${marked.parse(thinkContent)}</div>
+                </div>`;
+                        } else {
+                            const $clonedElement = $(collapsibleThinkTemplateHTML);
+                            $clonedElement.addClass(role === 'user' ? 'user-think-container' : 'assistant-think-container');
+                            const $toggle = $clonedElement.find('.collapsible-think-toggle');
+                            $toggle.addClass('assistant-think-toggle');
+                            if (role === 'user') {
+                                $toggle.addClass('user-think-toggle');
+                            }
+                            const $parsedContentContainer = $clonedElement.find('.collapsible-think-parsed-content');
+                            $parsedContentContainer.addClass(role === 'user' ? 'user-think-content' : 'assistant-think-content');
+                            $parsedContentContainer.html(marked.parse(thinkContent));
+                            thinkBlockHTML = $('<div>').append($clonedElement).html();
+                        }
+                    }
+                }
+                let normalContentHTML = '';
+                if (originalRestContent) {
+                    normalContentHTML = `<div class="normal-content">${marked.parse(originalRestContent)}</div>`;
+                } else if (thinkBlockHTML) {
+                    normalContentHTML = `<div class="normal-content is-empty-placeholder"></div>`;
+                }
+                const finalOutput = (thinkBlockHTML + normalContentHTML).trim();
+                if (!finalOutput && content.trim()) {
+                    return marked.parse(content.trim());
+                }
+                return finalOutput;
+            }
+            adjustTextareaHeight() {
+                const textarea = this.app.DOM.messageInput;
+                if (!textarea || !textarea.length) return;
+                textarea.css('height', 'auto');
+                let scrollHeight = textarea[0].scrollHeight;
+                const lineHeight = parseFloat(textarea.css('line-height')) || 20;
+                const minHeight = lineHeight * 1;
+                const maxHeight = lineHeight * 7;
+                if (scrollHeight < minHeight) {
+                    scrollHeight = minHeight;
+                }
+                if (scrollHeight > maxHeight) {
+                    scrollHeight = maxHeight;
+                    textarea.css('overflow-y', 'auto');
+                } else {
+                    textarea.css('overflow-y', 'hidden');
+                }
+                textarea.css('height', scrollHeight + 'px');
+            }
+            updateStreamToggleVisualState() {
+                const { streamingToggle } = this.app.DOM;
+                if (streamingToggle.length) {
+                    const { current, defaultSettings } = this.app.data._getActiveSettingsContext();
+                    const isStreaming = Utils.getEffectiveSetting(current, defaultSettings, 'isStreaming');
+                    streamingToggle.prop('checked', isStreaming);
+                }
+            }
+            showSettingsPanel() {
+                this.switchSettingsTab(this.app.STATE.currentSettingsTab);
+                this.app.DOM.settingsPanel.addClass('open');
+                this.app.DOM.settingsOverlay.addClass('open');
+            }
+            hideSettingsPanel() {
+                const { settingsPanel, settingsOverlay } = this.app.DOM;
+                settingsPanel.removeClass('open');
+                settingsOverlay.removeClass('open');
+            }
+            switchSettingsTab(tabName) {
+                const { tabButtons } = this.app.DOM;
+                tabButtons.removeClass('active');
+                tabButtons.filter(`[data-tab="${tabName}"]`).addClass('active');
+                this.app.STATE.currentSettingsTab = tabName;
+                this.app.data.loadChatSettings();
+            }
+            updateSelectedModelDisplay(newlySelectedModel, updateDropdownSelection = true) {
+                const { modelSelectorBtn, selectedModelDisplay, modelOptionsContainer } = this.app.DOM;
+                let modelToDisplay;
+                if (newlySelectedModel !== undefined && DEFAULT_MODEL_LIST[newlySelectedModel]) {
+                    modelToDisplay = newlySelectedModel;
+                } else {
+                    const { current, defaultSettings } = this.app.data._getActiveSettingsContext();
+                    modelToDisplay = Utils.getEffectiveSetting(current, defaultSettings, 'model');
+                    console.warn("updateSelectedModelDisplay: newlySelectedModel was undefined or invalid, using from settings context:", modelToDisplay);
+                }
+                const modelInfo = DEFAULT_MODEL_LIST[modelToDisplay];
+                if (!modelInfo) {
+                    console.error("updateSelectedModelDisplay: Critical - modelInfo not found for model:", modelToDisplay, ". Check DEFAULT_MODEL_LIST.");
+                    if (selectedModelDisplay) selectedModelDisplay.text("Error: Unknown Model");
+                    if (modelSelectorBtn) modelSelectorBtn.find('.model-description').text("Please select a valid model.");
+                    if (modelOptionsContainer) modelOptionsContainer.find('.model-selector-option').removeClass('selected');
+                    return;
+                }
+                if (selectedModelDisplay) selectedModelDisplay.text(modelToDisplay);
+                if (modelSelectorBtn) modelSelectorBtn.find('.model-description').text(modelInfo.description || "");
+                if (updateDropdownSelection && modelOptionsContainer && modelOptionsContainer.find('.model-selector-option').length > 0) {
+                    modelOptionsContainer.find('.model-selector-option').removeClass('selected');
+                    const optionToSelect = modelOptionsContainer.find(`.model-selector-option[data-value="${modelToDisplay}"]`);
+                    if (optionToSelect.length) {
+                        optionToSelect.addClass('selected');
+                    } else {
+                        console.warn("updateSelectedModelDisplay: Option not found in dropdown for model", modelToDisplay);
+                    }
+                }
+            }
+            toggleModelSelectorDropdown(event) {
+                const { modelSelector, modelSelectorBtn, selectedModelDisplay } = this.app.DOM;
+                event.stopPropagation();
+                const isOpening = !modelSelector.hasClass('open');
+                modelSelector.toggleClass('open');
+                modelSelectorBtn.find('i').toggleClass('rotate-180', isOpening);
+                if (isOpening) {
+                    const modelToSelect = selectedModelDisplay.text();
+                    this.updateSelectedModelDisplay(modelToSelect, true);
+                }
+            }
+            selectModelOption(modelValue) {
+                const { modelSelector, modelSelectorBtn } = this.app.DOM;
+                this.updateSelectedModelDisplay(modelValue, true);
+                modelSelector.removeClass('open');
+                modelSelectorBtn.find('i').removeClass('rotate-180');
+            }
+            showConfirmationModal(type, idToDelete, nameToDelete) {
+                const modal = this.app.DOM.confirmModal;
+                let title, message, confirmAction;
+                if (type === APP_CONSTANTS.MODAL_TYPES.CHAT_DELETE) {
+                    this.app.STATE.chatToDelete = idToDelete;
+                    title = '删除对话';
+                    message = `对话 "${nameToDelete}" 将被永久删除，该操作不可撤销。`;
+                    confirmAction = () => this.app.data.confirmChatDeletion();
+                } else if (type === APP_CONSTANTS.MODAL_TYPES.GROUP_DELETE) {
+                    this.app.STATE.groupToDelete = idToDelete;
+                    title = '删除分组';
+                    message = `分组 "${nameToDelete}" 将被删除。分组内的对话将变为未分组状态，该操作不可撤销。`;
+                    confirmAction = () => this.app.data.confirmGroupDeletion();
+                } else {
+                    console.warn("Unknown confirmation modal type:", type);
+                    return;
+                }
+                this._showModal(modal, title, message, confirmAction, "删除");
+            }
+            hideConfirmationModal() {
+                this._hideModal(this.app.DOM.confirmModal, () => {
+                    this.app.STATE.chatToDelete = null;
+                    this.app.STATE.groupToDelete = null;
+                });
+            }
+            renderChatMessages(messages) {
+                const { chatContainer, initialChatEmptyStateTemplate } = this.app.DOM;
+                if (!chatContainer || !chatContainer.length) {
+                    console.error("Chat container not found for rendering messages.");
+                    return;
+                }
+                chatContainer.empty();
+                if (!messages || messages.length === 0) {
+                    if (initialChatEmptyStateTemplate) {
+                        chatContainer.html(initialChatEmptyStateTemplate);
+                    } else {
+                        chatContainer.html('<p class="text-center text-gray-500">开始对话吧！</p>');
+                    }
+                    return;
+                }
+                messages.forEach((message, index) => {
+                    let messageElement;
+                    if (message.role === 'user') {
+                        messageElement = this._buildUserMessageElement(message, index);
+                    } else {
+                        messageElement = this._buildAssistantMessageElement(message, index);
+                    }
+                    chatContainer.append(messageElement);
+                });
+                chatContainer.scrollTop(chatContainer[0].scrollHeight);
+            }
+            _buildUserMessageElement(message, index) {
+                const { userMessageTemplate } = this.app.DOM;
+                if (!userMessageTemplate) return $('<div>Error: User template missing</div>');
+                const $messageElement = $(userMessageTemplate).attr('data-message-index', index);
+                const $userMessageContent = $messageElement.find('.user-message');
+                $userMessageContent.html(this._processThinkContent(message.content, 'user'));
+                $messageElement.find('.timestamp').text(Utils.formatTimestamp(message.timestamp));
+                const $resendBtn = $messageElement.find('.resend-btn');
+                $resendBtn.attr('data-message-index', index);
+                if (message.isAutoReply) {
+                    $messageElement.find('.user-name-display').text(message.model || 'AutoBot');
+                    $userMessageContent.addClass('no-hover-style');
+                    if (message.elapsedTime) {
+                        $messageElement.find('.elapsed-time').text(` · 耗时 ${message.elapsedTime}ms`);
+                    }
+                    $messageElement.find('.streaming-status').text(message.isStreaming ? '流式' : '非流式');
+                    $resendBtn.removeClass('is-hidden');
+                } else if (message.isAutoReplyOrigin) {
+                    $messageElement.find('.user-name-display').text(message.generationModel || 'AutoBot');
+                    $userMessageContent.addClass('no-hover-style');
+                    $messageElement.find('.elapsed-time').text('');
+                    $messageElement.find('.streaming-status').text('生成中...');
+                    $resendBtn.addClass('is-hidden');
+                } else {
+                    $messageElement.find('.user-name-display').text(this.app.STATE.currentUser || 'You');
+                    $messageElement.find('.elapsed-time').text('');
+                    $messageElement.find('.streaming-status').text('');
+                    $resendBtn.removeClass('is-hidden');
+                }
+                return $messageElement;
+            }
+            _buildAssistantMessageElement(message, index) {
+                const { assistantMessageTemplate } = this.app.DOM;
+                if (!assistantMessageTemplate) return $('<div>Error: Assistant template missing</div>');
+                const $messageElement = $(assistantMessageTemplate).attr('data-message-index', index);
+                const $assistantMessageContentDiv = $messageElement.find('.assistant-message');
+                const processedContent = this._processThinkContent(message.content, 'assistant');
+                $assistantMessageContentDiv.html(processedContent);
+                if (message.content && message.content.includes("<think>")) {
+                    const $normalContentDiv = $assistantMessageContentDiv.find('.normal-content');
+                    if ($normalContentDiv.length > 0) {
+                        if ($normalContentDiv.html().trim() === '' && $normalContentDiv.hasClass('is-empty-placeholder')) {
+                            $normalContentDiv.addClass('is-hidden');
+                        } else {
+                            $normalContentDiv.removeClass('is-hidden');
+                        }
+                    }
+                }
+                $messageElement.find('.model-name-display').text(message.model || 'Assistant');
+                $messageElement.find('.timestamp').text(Utils.formatTimestamp(message.timestamp));
+                if (message.elapsedTime) {
+                    $messageElement.find('.elapsed-time').text(` · 耗时 ${message.elapsedTime}ms`);
+                }
+                if (message.isGenerating) {
+                    $messageElement.find('.streaming-status').text('生成中...');
+                } else {
+                    $messageElement.find('.streaming-status').text(message.isStreaming ? '流式' : '非流式');
+                }
+                return $messageElement;
+            }
+            startEditUserMessage($userMessageDiv, messageIndex) {
+                const $messageContainer = $userMessageDiv.closest('.max-w-\\[50\\%\\]');
+                const $editContainer = $messageContainer.find('.edit-message-container');
+                const $textarea = $editContainer.find('textarea.edit-textarea');
+                const messageWidth = $userMessageDiv.outerWidth();
+                const messageHeight = $userMessageDiv.outerHeight();
+                $textarea.css({ width: `${messageWidth}px`, height: `${messageHeight}px` });
+                const currentMessages = this.app.data.getCurrentChat()?.messages;
+                if (currentMessages && currentMessages[messageIndex]) {
+                    let rawContent = currentMessages[messageIndex].content;
+                    const thinkMatch = rawContent.match(/<think>[\s\S]*?<\/think>/);
+                    if (thinkMatch) {
+                        rawContent = rawContent.replace(thinkMatch[0], '').trim();
+                    }
+                    $textarea.val(rawContent);
+                }
+                $userMessageDiv.addClass('is-hidden');
+                $editContainer.removeClass('is-hidden');
+                $textarea.trigger('focus').on('blur.editUser', (event) => {
+                    if (!$(event.relatedTarget).closest('.edit-buttons').length) {
+                        $userMessageDiv.removeClass('is-hidden');
+                        $editContainer.addClass('is-hidden');
+                        $(event.currentTarget).off('blur.editUser');
+                    }
+                });
+            }
+            cancelEditUserMessage(buttonElement) {
+                const $editContainer = $(buttonElement).closest('.edit-message-container');
+                const $messageContainer = $editContainer.closest('.max-w-\\[50\\%\\]');
+                $messageContainer.find('.user-message').removeClass('is-hidden');
+                $editContainer.addClass('is-hidden');
+                $editContainer.find('textarea.edit-textarea').off('blur.editUser');
+            }
+            saveEditedUserMessage(buttonElement, messageIndex) {
+                const $editContainer = $(buttonElement).closest('.edit-message-container');
+                const $textarea = $editContainer.find('textarea.edit-textarea');
+                const newContent = $textarea.val().trim();
+                if (!newContent) {
+                    this.app.ui.notification.error('消息内容不能为空');
+                    return;
+                }
+                const chat = this.app.data.getCurrentChat();
+                if (chat && chat.messages[messageIndex]) {
+                    let originalFullContent = chat.messages[messageIndex].content;
+                    const thinkMatch = originalFullContent.match(/<think>[\s\S]*?<\/think>/);
+                    let finalContent = newContent;
+                    if (thinkMatch) {
+                        finalContent = thinkMatch[0] + "\n" + newContent;
+                    }
+                    if (chat.messages[messageIndex].content !== finalContent) {
+                        chat.messages[messageIndex].content = finalContent;
+                        chat.messages[messageIndex].timestamp = new Date().toISOString();
+                        this.app.data.saveState();
+                        this.app.data.resendUserMessage(messageIndex);
+                    } else {
+                        const $messageContainer = $editContainer.closest('.max-w-\\[50\\%\\]');
+                        $messageContainer.find('.user-message').removeClass('is-hidden');
+                        $editContainer.addClass('is-hidden');
+                        $textarea.off('blur.editUser');
+                    }
+                }
+            }
+            _buildHistoryItemElement(chat, currentChatId) {
+                const { historyItemTemplate } = this.app.DOM;
+                if (!historyItemTemplate) return null;
+                const $historyItem = $(historyItemTemplate)
+                    .attr('data-chat-id', chat.id)
+                    .attr('draggable', true);
+                if (chat.id === currentChatId) {
+                    $historyItem.addClass('active');
+                }
+                const $chatNameSpan = $historyItem.find('.history-name');
+                const $chatNameInput = $historyItem.find('.edit-name-input');
+                $chatNameSpan.text(chat.name).attr('title', chat.name).removeClass('is-hidden');
+                $chatNameInput.val(chat.name).addClass('is-hidden');
+                $historyItem.removeClass('editing');
+                $historyItem.find('.time-string').text(new Date(chat.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+                return $historyItem;
+            }
+            _buildHistoryGroupElement(group, chatsInGroup, currentChatId) {
+                const { historyGroupItemTemplate } = this.app.DOM;
+                if (!historyGroupItemTemplate) return null;
+                const $groupItem = $(historyGroupItemTemplate).attr('data-group-id', group.id);
+                const $groupHeader = $groupItem.find('.group-header');
+                const $groupNameSpan = $groupHeader.find('.group-name');
+                const $groupNameInput = $groupHeader.find('.edit-group-name-input');
+                $groupNameSpan.text(group.name).attr('title', group.name).removeClass('is-hidden');
+                $groupNameInput.val(group.name).addClass('is-hidden');
+                $groupHeader.removeClass('editing-group-name');
+                const $groupTimeString = $groupItem.find('.group-time-string');
+                if ($groupTimeString.length && group.createdAt) {
+                    $groupTimeString.text(new Date(group.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }));
+                }
+                const $groupChatList = $groupItem.find('.group-chat-list');
+                if (group.isExpanded) {
+                    $groupHeader.addClass('expanded');
+                    $groupChatList.show();
+                } else {
+                    $groupHeader.removeClass('expanded');
+                    $groupChatList.hide();
+                }
+                chatsInGroup.forEach(chat => {
+                    const $chatElement = this._buildHistoryItemElement(chat, currentChatId);
+                    if ($chatElement) $groupChatList.append($chatElement);
+                });
+                return $groupItem;
+            }
+            renderChatHistory(filteredChats = null) {
+                const { historyList, historyListEmptyStateTemplate, historySectionTemplate } = this.app.DOM;
+                const { chats, groups, currentChatId } = this.app.STATE;
+                if (!historyList || !historyList.length) {
+                    console.error("History list DOM element not found.");
+                    return;
+                }
+                historyList.empty();
+                const chatsToDisplay = filteredChats !== null ? filteredChats : [...chats];
+                if (chatsToDisplay.length === 0 && groups.length === 0 && !filteredChats) {
+                    if (historyListEmptyStateTemplate) historyList.html(historyListEmptyStateTemplate);
+                    return;
+                }
+                const sortedGroups = [...groups].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                const chatsByGroupId = {};
+                chatsToDisplay.forEach(chat => {
+                    const groupId = chat.groupId || 'ungrouped';
+                    if (!chatsByGroupId[groupId]) chatsByGroupId[groupId] = [];
+                    chatsByGroupId[groupId].push(chat);
+                });
+                for (const id in chatsByGroupId) {
+                    chatsByGroupId[id].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                }
+                sortedGroups.forEach(group => {
+                    const chatsInThisGroup = chatsByGroupId[group.id] || [];
+                    if (filteredChats && chatsInThisGroup.length === 0 && !filteredChats.some(c => c.groupId === group.id)) {
+                        const groupNameMatchesFilter = filteredChats === null ? true : group.name.toLowerCase().includes(this.app.DOM.chatSearchInput.val().trim().toLowerCase());
+                        if (!groupNameMatchesFilter && chatsInThisGroup.length === 0) return;
+                    }
+                    const $groupElement = this._buildHistoryGroupElement(group, chatsInThisGroup, currentChatId);
+                    if ($groupElement) historyList.append($groupElement);
+                });
+                const ungroupedChats = chatsByGroupId['ungrouped'] || [];
+                if (ungroupedChats.length > 0) {
+                    if (filteredChats) {
+                        ungroupedChats.forEach(chat => {
+                            const $chatElement = this._buildHistoryItemElement(chat, currentChatId);
+                            if ($chatElement) historyList.append($chatElement);
+                        });
+                    } else {
+                        const groupedByTime = Utils.groupChatsByTime(ungroupedChats);
+                        const sectionNameMap = {
+                            today: '今天', yesterday: '昨天', last7Days: '过去7天',
+                            last30Days: '过去30天', older: '更早'
+                        };
+                        Object.keys(sectionNameMap).forEach(key => {
+                            const sectionChats = groupedByTime[key];
+                            if (sectionChats.length === 0) return;
+                            if (!historySectionTemplate) return;
+                            const $sectionElement = $(historySectionTemplate);
+                            $sectionElement.find('.history-section-name').text(sectionNameMap[key]);
+                            sectionChats.forEach(chat => {
+                                const $chatElement = this._buildHistoryItemElement(chat, currentChatId);
+                                if ($chatElement) $sectionElement.append($chatElement);
+                            });
+                            historyList.append($sectionElement);
+                        });
+                    }
+                }
+                if (historyList.children().length === 0 && historyListEmptyStateTemplate) {
+                    historyList.html(historyListEmptyStateTemplate);
+                }
+                this.initDragAndDrop();
+            }
+            startEditingChatName($historyItemElement) {
+                $historyItemElement.addClass('editing');
+                const currentName = $historyItemElement.find('.history-name').text();
+                $historyItemElement.find('.history-name').addClass('is-hidden');
+                $historyItemElement.find('.edit-name-input')
+                    .val(currentName)
+                    .removeClass('is-hidden')
+                    .trigger('focus')
+                    .trigger('select');
+            }
+            finishEditingChatName($historyItemElement) {
+                const { chatName: headerChatNameDisplay } = this.app.DOM;
+                const { chats, currentChatId } = this.app.STATE;
+                const $inputElement = $historyItemElement.find('.edit-name-input');
+                const newName = $inputElement.val().trim();
+                const chatId = $historyItemElement.data('chat-id');
+                const chat = chats.find(c => c.id === chatId);
+                if (chat && newName && newName !== chat.name) {
+                    chat.name = newName;
+                    this.app.data.saveState();
+                    $historyItemElement.find('.history-name').text(newName).attr('title', newName);
+                    if (currentChatId === chatId && headerChatNameDisplay) {
+                        headerChatNameDisplay.text(newName);
+                    }
+                }
+                $historyItemElement.removeClass('editing');
+                $historyItemElement.find('.history-name').removeClass('is-hidden');
+                $inputElement.addClass('is-hidden');
+            }
+            startEditingGroupName($groupHeaderElement) {
+                $groupHeaderElement.addClass('editing-group-name');
+                const currentName = $groupHeaderElement.find('.group-name').text();
+                $groupHeaderElement.find('.group-name').addClass('is-hidden');
+                $groupHeaderElement.find('.edit-group-name-input')
+                    .val(currentName)
+                    .removeClass('is-hidden')
+                    .trigger('focus')
+                    .trigger('select');
+            }
+            finishEditingGroupName($groupHeaderElement) {
+                const $inputElement = $groupHeaderElement.find('.edit-group-name-input');
+                const newName = $inputElement.val().trim();
+                const groupId = $groupHeaderElement.closest('.history-group-item').data('group-id');
+                $groupHeaderElement.removeClass('editing-group-name');
+                $groupHeaderElement.find('.group-name').removeClass('is-hidden');
+                $inputElement.addClass('is-hidden');
+                if (newName) {
+                    this.app.data.renameGroup(groupId, newName);
+                } else {
+                    const group = this.app.STATE.groups.find(g => g.id === groupId);
+                    if (group) $groupHeaderElement.find('.group-name').text(group.name);
+                }
+            }
+            showUserLoginModal() {
+                const { userLoginModal, usernameInput, startChatBtn } = this.app.DOM;
+                this._showModal(userLoginModal, '输入你的 UM', '开始聊天前，请输入您的UM账号。', null, "开始聊天");
+                const currentUser = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.CURRENT_USER);
+                const $modalTitle = userLoginModal.find('h2');
+                if (currentUser && /^[a-zA-Z0-9]+$/.test(currentUser)) {
+                    $modalTitle.text(`欢迎 ${currentUser}`);
+                } else {
+                    $modalTitle.text('输入你的 UM');
+                }
+                usernameInput.val('');
+                startChatBtn.prop('disabled', true);
+                usernameInput.trigger('focus');
+            }
+            hideUserLoginModal() {
+                this._hideModal(this.app.DOM.userLoginModal);
+            }
+            updateUserProfileAvatar(username) {
+                if (this.app.DOM.loggedInUsername) this.app.DOM.loggedInUsername.text(username || '');
+            }
+            setUIBusy(isBusy, options = {}) {
+                const { focusInputOnEnd = false } = options;
+                const { sendBtn, messageInput } = this.app.DOM;
+                this.app.STATE.isWaitingForResponse = isBusy;
+                if (sendBtn && sendBtn.length) {
+                    sendBtn.toggleClass('sending', isBusy).prop('disabled', isBusy);
+                }
+                if (messageInput && messageInput.length) {
+                    messageInput.prop('disabled', isBusy);
+                    if (!isBusy && focusInputOnEnd && !messageInput.is(':focus')) {
+                        messageInput.trigger('focus');
+                    }
+                }
+            }
+            initDragAndDrop() {
+                const self = this;
+                const historyList = this.app.DOM.historyList;
+                if (!historyList || !historyList.length) return;
+                historyList.off('dragstart.chatapp dragend.chatapp', '.history-item[draggable="true"]');
+                historyList.off('dragover.chatapp dragleave.chatapp drop.chatapp', '.history-group-item .group-header');
+                historyList.off('dragover.chatapp.general drop.chatapp.general');
+                historyList.on('dragstart.chatapp', '.history-item[draggable="true"]', function (e) {
+                    self.draggedChatId = $(this).data('chat-id');
+                    $(this).addClass('dragging');
+                    if (e.originalEvent && e.originalEvent.dataTransfer) {
+                        e.originalEvent.dataTransfer.setData('text/plain', self.draggedChatId);
+                        e.originalEvent.dataTransfer.effectAllowed = 'move';
+                    }
+                });
+                historyList.on('dragend.chatapp', '.history-item[draggable="true"]', function () {
+                    $(this).removeClass('dragging');
+                    self.draggedChatId = null;
+                    historyList.find('.history-group-item').removeClass('drag-over-group');
+                });
+                historyList.on('dragover.chatapp', '.history-group-item .group-header', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    $(this).closest('.history-group-item').addClass('drag-over-group');
+                    if (e.originalEvent && e.originalEvent.dataTransfer) {
+                        e.originalEvent.dataTransfer.dropEffect = 'move';
+                    }
+                });
+                historyList.on('dragleave.chatapp', '.history-group-item .group-header', function () {
+                    $(this).closest('.history-group-item').removeClass('drag-over-group');
+                });
+                historyList.on('drop.chatapp', '.history-group-item .group-header', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    $(this).closest('.history-group-item').removeClass('drag-over-group');
+                    const targetGroupId = $(this).closest('.history-group-item').data('group-id');
+                    if (self.draggedChatId && targetGroupId) {
+                        const chat = self.app.STATE.chats.find(c => c.id === self.draggedChatId);
+                        if (chat && chat.groupId !== targetGroupId) {
+                            self.app.data.assignChatToGroup(self.draggedChatId, targetGroupId);
+                        }
+                    }
+                });
+                historyList.on('dragover.chatapp.general', function (e) {
+                    if (self.draggedChatId && !$(e.target).closest('.history-group-item .group-header').length) {
+                        e.preventDefault();
+                        if (e.originalEvent && e.originalEvent.dataTransfer) {
+                            e.originalEvent.dataTransfer.dropEffect = 'move';
+                        }
+                    }
+                });
+                historyList.on('drop.chatapp.general', function (e) {
+                    if (self.draggedChatId && !$(e.target).closest('.history-group-item .group-header').length) {
+                        e.preventDefault();
+                        const chat = self.app.STATE.chats.find(c => c.id === self.draggedChatId);
+                        if (chat && chat.groupId !== null) {
+                            self.app.data.assignChatToGroup(self.draggedChatId, null);
+                        }
+                    }
+                });
+            }
+            toggleNewItemDropdown(event) {
+                if (event) event.stopPropagation();
+                if (this.app.DOM.newItemOptions) this.app.DOM.newItemOptions.toggleClass('is-hidden');
+            }
+            hideNewItemDropdown() {
+                if (this.app.DOM.newItemOptions) this.app.DOM.newItemOptions.addClass('is-hidden');
+            }
+            toggleSettingsActionMenu() {
+                if (this.app.DOM.settingsActionMenu && this.app.DOM.settingsBtnMenuTrigger) {
+                    const isOpening = this.app.DOM.settingsActionMenu.hasClass('is-hidden');
+                    this.app.DOM.settingsActionMenu.toggleClass('is-hidden');
+                    this.app.DOM.settingsBtnMenuTrigger.find('i').toggleClass('rotate-180', isOpening);
+                }
+            }
+            hideSettingsActionMenu() {
+                if (this.app.DOM.settingsActionMenu && this.app.DOM.settingsBtnMenuTrigger) {
+                    this.app.DOM.settingsActionMenu.addClass('is-hidden');
+                    this.app.DOM.settingsBtnMenuTrigger.find('i').removeClass('rotate-180');
+                }
+            }
+        }
+        class APIManager {
+            constructor(app) {
+                this.app = app;
+            }
+            async _makeApiRequest({ endpoint, payload, isStreaming, onNonStreamSuccess, onStreamDelta, onStreamFinish, onError, onFinally }) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) {
+                        let errorBody = "Could not read error body from response.";
+                        try { errorBody = await response.text(); } catch (e) { }
+                        throw new Error(`Network response was not ok: ${response.status} ${response.statusText}. Body: ${errorBody}`);
+                    }
+                    if (isStreaming) {
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let lineBuffer = '';
+                        const readStream = async () => {
+                            const { done, value } = await reader.read();
+                            if (done) {
+                                if (onStreamFinish) onStreamFinish({ status: 'done_by_client', delta: null });
+                                return;
+                            }
+                            lineBuffer += decoder.decode(value, { stream: true });
+                            let lines = lineBuffer.split('\n');
+                            lineBuffer = lines.pop();
+                            for (const line of lines) {
+                                if (line.trim() === '' || line.trim() === 'data:') continue;
+                                const jsonDataToParse = line.startsWith('data:') ? line.substring(5).trim() : line.trim();
+                                try {
+                                    const parsed = JSON.parse(jsonDataToParse);
+                                    if (parsed.delta && parsed.status === 'delta') {
+                                        if (onStreamDelta) onStreamDelta(parsed);
+                                    } else if (parsed.status === 'finish') {
+                                        if (onStreamFinish) onStreamFinish(parsed);
+                                        try { reader.cancel("Stream finished by server signal."); } catch (e) { console.warn("Error cancelling reader:", e); }
+                                        return;
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse JSON line in stream:', jsonDataToParse, e);
+                                }
+                            }
+                            await readStream();
+                        };
+                        await readStream();
+                    } else {
+                        const data = await response.json();
+                        if (onNonStreamSuccess) onNonStreamSuccess(data);
+                    }
+                } catch (error) {
+                    console.error("API Request Error:", error);
+                    if (onError) onError(error);
+                } finally {
+                    if (onFinally) onFinally();
+                }
+            }
+            async _generateUserMessageContent(chat, userSettings) {
+                const { ui, data, DOM, STATE } = this.app;
+                ui.setUIBusy(true);
+                const generationStartTime = Date.now();
+                const autoReplyUserMessage = {
+                    role: 'user', content: '', timestamp: new Date().toISOString(), sentTime: generationStartTime,
+                    isAutoReplyOrigin: true,
+                    generationModel: userSettings.model,
+                    generationIsStreaming: userSettings.isStreaming,
+                    generationElapsedTime: 0
+                };
+                chat.messages.push(autoReplyUserMessage);
+                data.saveState();
+                ui.renderChatMessages(chat.messages);
+                const historyForAutoReplyAPI = chat.messages.slice(0, -1)
+                    .map(m => ({ role: m.role, content: m.content.replace(/<think>[\s\S]*?<\/think>/, '').trim() }));
+                const payloadForAutoReply = {
+                    chatId: STATE.currentChatId, reqId: Utils.generateUuid(),
+                    query: APP_CONSTANTS.AUTO_REPLY_PROMPT,
+                    messages: historyForAutoReplyAPI,
+                    settings: { ...userSettings },
+                    user: STATE.currentUser
+                };
+                const endpointForAutoReply = userSettings.isStreaming ? userSettings.streamingEndpoint : userSettings.nonStreamingEndpoint;
+                await this._makeApiRequest({
+                    endpoint: endpointForAutoReply, payload: payloadForAutoReply, isStreaming: userSettings.isStreaming,
+                    onStreamDelta: (parsedDelta) => {
+                        autoReplyUserMessage.content += parsedDelta.delta;
+                        ui.renderChatMessages(chat.messages);
+                    },
+                    onNonStreamSuccess: (responseData) => {
+                        if (responseData.response && responseData.response.trim() !== '') {
+                            autoReplyUserMessage.content = responseData.response.trim();
+                        }
+                        this._finalizeAutoGeneratedMessage(chat, autoReplyUserMessage, generationStartTime, responseData.response ? responseData.response.trim() : null);
+                    },
+                    onStreamFinish: (parsedFinish) => {
+                        if (parsedFinish.status === 'finish' && parsedFinish.delta) {
+                            autoReplyUserMessage.content += parsedFinish.delta;
+                        }
+                        this._finalizeAutoGeneratedMessage(chat, autoReplyUserMessage, generationStartTime, parsedFinish.delta);
+                    },
+                    onError: (error) => {
+                        console.error(`API Error (Auto-Reply Generation):`, error);
+                        ui.notification.error(`自动回复生成失败: ${error.message}`);
+                        const idx = chat.messages.indexOf(autoReplyUserMessage);
+                        if (idx > -1) chat.messages.splice(idx, 1);
+                        data.saveState(); ui.renderChatMessages(chat.messages);
+                        ui.setUIBusy(false);
+                    },
+                    onFinally: () => {
+                    }
+                });
+            }
+            _finalizeAutoGeneratedMessage(chat, autoReplyUserMessage, generationStartTime, finalDelta) {
+                const { ui, data, DOM, STATE } = this.app;
+                autoReplyUserMessage.content = autoReplyUserMessage.content.trim();
+                autoReplyUserMessage.generationElapsedTime = Date.now() - generationStartTime;
+                if (chat.messages.length === 1 && autoReplyUserMessage.content && chat.name === APP_CONSTANTS.NEW_CHAT_DEFAULT_NAME) {
+                    chat.name = autoReplyUserMessage.content.substring(0, APP_CONSTANTS.CHAT_NAME_MAX_LENGTH) + (autoReplyUserMessage.content.length > APP_CONSTANTS.CHAT_NAME_MAX_LENGTH ? '...' : '');
+                    if (DOM.chatName) DOM.chatName.text(chat.name);
+                    ui.renderChatHistory();
+                }
+                data.saveState();
+                ui.renderChatMessages(chat.messages);
+                if (autoReplyUserMessage.content) {
+                    if (DOM.messageInput) DOM.messageInput.val('');
+                    localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.DRAFT_MESSAGE);
+                    const messageIndexOfAutoReply = chat.messages.indexOf(autoReplyUserMessage);
+                    if (messageIndexOfAutoReply > -1) {
+                        data.resendUserMessage(messageIndexOfAutoReply);
+                    }
+                } else {
+                    ui.notification.warning('自动回复未返回有效内容。');
+                    const idx = chat.messages.indexOf(autoReplyUserMessage);
+                    if (idx > -1) chat.messages.splice(idx, 1);
+                    data.saveState(); ui.renderChatMessages(chat.messages);
+                    ui.setUIBusy(false);
+                }
+            }
+            async _fetchAssistantResponse(chat, assistantSettings, userMessageContent, historyForAPI, isResendContext = false, autoReplyMetaForSend = null) {
+                const { ui, data, DOM, STATE } = this.app;
+                if (!isResendContext) {
+                    const userMessage = {
+                        role: 'user', content: userMessageContent,
+                        timestamp: new Date().toISOString(), sentTime: Date.now()
+                    };
+                    if (autoReplyMetaForSend) {
+                        userMessage.isAutoReply = true;
+                        userMessage.model = autoReplyMetaForSend.model;
+                        userMessage.elapsedTime = autoReplyMetaForSend.elapsedTime;
+                        userMessage.isStreaming = autoReplyMetaForSend.isStreaming;
+                    }
+                    chat.messages.push(userMessage);
+                    if (chat.messages.length === 1 && userMessageContent && chat.name === APP_CONSTANTS.NEW_CHAT_DEFAULT_NAME) {
+                        chat.name = userMessageContent.substring(0, APP_CONSTANTS.CHAT_NAME_MAX_LENGTH);
+                        if (DOM.chatName) DOM.chatName.text(chat.name);
+                        ui.renderChatHistory();
+                    }
+                } else {
+                    const lastUserMessage = chat.messages[chat.messages.length - 1];
+                    if (lastUserMessage && lastUserMessage.role === 'user') {
+                        lastUserMessage.timestamp = new Date().toISOString();
+                        lastUserMessage.sentTime = Date.now();
+                        if (lastUserMessage.isAutoReplyOrigin) {
+                            lastUserMessage.isAutoReply = true;
+                            lastUserMessage.model = lastUserMessage.generationModel;
+                            lastUserMessage.elapsedTime = lastUserMessage.generationElapsedTime;
+                            lastUserMessage.isStreaming = lastUserMessage.generationIsStreaming;
+                            delete lastUserMessage.isAutoReplyOrigin;
+                            delete lastUserMessage.generationModel;
+                            delete lastUserMessage.generationIsStreaming;
+                            delete lastUserMessage.generationElapsedTime;
+                        }
+                    }
+                }
+                data.saveState();
+                ui.renderChatMessages(chat.messages);
+                if (!isResendContext && autoReplyMetaForSend === null && userMessageContent === null && DOM.messageInput) {
+                    DOM.messageInput.val('');
+                    localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.DRAFT_MESSAGE);
+                    ui.adjustTextareaHeight();
+                }
+                if (STATE.isNewChat && chat.messages.length > 0) STATE.isNewChat = false;
+                const queryForAPI = chat.messages[chat.messages.length - 1]?.content.replace(/<think>[\s\S]*?<\/think>/, '').trim() || "";
+                const effectiveHistoryForAPI = chat.messages.length > 1 ?
+                    chat.messages.slice(0, -1).map(m => ({ role: m.role, content: m.content.replace(/<think>[\s\S]*?<\/think>/, '').trim() })) : [];
+                const payload = {
+                    chatId: STATE.currentChatId, reqId: Utils.generateUuid(),
+                    query: queryForAPI, messages: effectiveHistoryForAPI,
+                    settings: { ...assistantSettings },
+                    user: STATE.currentUser
+                };
+                const endpoint = assistantSettings.isStreaming ? assistantSettings.streamingEndpoint : assistantSettings.nonStreamingEndpoint;
+                const requestStartTime = Date.now();
+                let assistantMessage = {
+                    role: 'assistant', content: '', model: assistantSettings.model,
+                    timestamp: new Date().toISOString(), elapsedTime: 0, isStreaming: assistantSettings.isStreaming,
+                    isGenerating: assistantSettings.isStreaming
+                };
+                let assistantMessageAddedToChat = false;
+                const shouldFocusInputAfterNotBusy = !autoReplyMetaForSend;
+                await this._makeApiRequest({
+                    endpoint, payload, isStreaming: assistantSettings.isStreaming,
+                    onNonStreamSuccess: (dataResponse) => {
+                        const userMessages = chat.messages.filter(m => m.role === 'user' && !m.isAutoReplyOrigin);
+                        const lastUserMsgSentTime = userMessages.length > 0 ? userMessages[userMessages.length - 1].sentTime : requestStartTime;
+                        assistantMessage.content = dataResponse.response || "";
+                        assistantMessage.elapsedTime = Date.now() - lastUserMsgSentTime;
+                        assistantMessage.isGenerating = false;
+                        if (!assistantMessageAddedToChat) {
+                            chat.messages.push(assistantMessage);
+                            assistantMessageAddedToChat = true;
+                        }
+                        data.saveState(); ui.renderChatMessages(chat.messages);
+                    },
+                    onStreamDelta: (parsedDelta) => {
+                        if (!assistantMessageAddedToChat) {
+                            chat.messages.push(assistantMessage);
+                            assistantMessageAddedToChat = true;
+                        }
+                        assistantMessage.content += parsedDelta.delta;
+                        ui.renderChatMessages(chat.messages);
+                    },
+                    onStreamFinish: (parsedFinish) => {
+                        let saveAndRender = false;
+                        if (assistantMessageAddedToChat) {
+                            if (assistantMessage.content.trim() === '' && (!parsedFinish.delta || parsedFinish.delta.trim() === '')) {
+                                const idx = chat.messages.indexOf(assistantMessage);
+                                if (idx > -1) chat.messages.splice(idx, 1);
+                            } else {
+                                if (parsedFinish.status === 'finish' && parsedFinish.delta) {
+                                    assistantMessage.content += parsedFinish.delta;
+                                }
+                                const userMessages = chat.messages.filter(m => m.role === 'user' && !m.isAutoReplyOrigin);
+                                const lastUserMsgSentTime = userMessages.length > 0 ? userMessages[userMessages.length - 1].sentTime : requestStartTime;
+                                assistantMessage.elapsedTime = Date.now() - lastUserMsgSentTime;
+                                saveAndRender = true;
+                            }
+                            assistantMessage.isGenerating = false;
+                        } else if (parsedFinish.status === 'finish' && parsedFinish.delta && parsedFinish.delta.trim() !== '') {
+                            assistantMessage.content = parsedFinish.delta;
+                            const userMessages = chat.messages.filter(m => m.role === 'user' && !m.isAutoReplyOrigin);
+                            const lastUserMsgSentTime = userMessages.length > 0 ? userMessages[userMessages.length - 1].sentTime : requestStartTime;
+                            assistantMessage.elapsedTime = Date.now() - lastUserMsgSentTime;
+                            assistantMessage.isGenerating = false;
+                            chat.messages.push(assistantMessage);
+                            saveAndRender = true;
+                        }
+                        if (saveAndRender) {
+                            data.saveState(); ui.renderChatMessages(chat.messages);
+                        } else if (assistantMessageAddedToChat && !saveAndRender) {
+                            data.saveState(); ui.renderChatMessages(chat.messages);
+                        }
+                    },
+                    onError: (error) => {
+                        ui.notification.error(`请求失败: ${error.message}`);
+                        if (assistantMessageAddedToChat) {
+                            const idx = chat.messages.indexOf(assistantMessage);
+                            if (idx > -1) chat.messages.splice(idx, 1);
+                            ui.renderChatMessages(chat.messages);
+                        }
+                    },
+                    onFinally: () => {
+                        ui.setUIBusy(false, { focusInputOnEnd: shouldFocusInputAfterNotBusy });
+                    }
+                });
+            }
+            sendChatMessage(contentOverride = null, isResend = false, autoReplyMeta = null) {
+                const { data, DOM, STATE, ui } = this.app;
+                const chat = data.getCurrentChat();
+                if (!chat) {
+                    ui.notification.error("当前没有活动的对话。");
+                    return;
+                }
+                const messageContentForUser = contentOverride !== null ? contentOverride : (DOM.messageInput ? DOM.messageInput.val().trim() : "");
+                if (!messageContentForUser && !isResend) {
+                    return;
+                }
+                if (STATE.isWaitingForResponse && !isResend && !autoReplyMeta) return;
+                ui.setUIBusy(true);
+                const assistantSettings = chat.settings || DEFAULT_ASSISTANT_SETTINGS;
+                this._fetchAssistantResponse(chat, assistantSettings, messageContentForUser, null, isResend, autoReplyMeta);
+            }
+            sendAutoReplyRequest() {
+                const { data, ui } = this.app;
+                const chat = data.getCurrentChat();
+                if (!chat) {
+                    ui.notification.error("当前没有活动的对话以进行自动回复。");
+                    return;
+                }
+                if (this.app.STATE.isWaitingForResponse) {
+                    ui.notification.warning("请等待当前操作完成后再试。");
+                    return;
+                }
+                const userGenSettings = chat.userSettings || DEFAULT_USER_SETTINGS;
+                this._generateUserMessageContent(chat, userGenSettings);
+            }
+        }
+        class EventHandlerManager {
+            constructor(app) {
+                this.app = app;
+            }
+            attachEventListeners() {
+                const { sidebarToggleBtn, sendBtn, messageInput, newItemBtn, newItemDropdownTrigger, newItemOptions, settingsBtnPanel, settingsBtnMenuTrigger, closeSettingsBtn, settingsOverlay, closeModalBtn, cancelDeleteBtn, modelSelectorBtn, saveSettingsBtn, historyList, chatContainer, userProfileBtn, startChatBtn, usernameInput, tabButtons, chatSearchInput, clearSearchBtn, clearChatMenuItem, exportChatMenuItem } = this.app.DOM;
+                if (sidebarToggleBtn && sidebarToggleBtn.length) sidebarToggleBtn.on('click', this.handleSidebarToggleClick.bind(this));
+                if (sendBtn && sendBtn.length) sendBtn.on('click', this.handleSendMessageClick.bind(this));
+                if (messageInput && messageInput.length) {
+                    messageInput.on('keypress', this.handleMessageInputKeypress.bind(this));
+                    messageInput.on('input', this.app.ui.adjustTextareaHeight.bind(this.app.ui));
+                    messageInput.on('input', Utils.debounce(this.handleMessageInputDraftSave.bind(this), 500));
+                }
+                if (newItemBtn && newItemBtn.length) {
+                    newItemBtn.on('click', '.main-action-area', (event) => {
+                        this.app.data.createNewChat();
+                        this.app.ui.hideNewItemDropdown();
+                    });
+                }
+                if (newItemDropdownTrigger && newItemDropdownTrigger.length) {
+                    newItemDropdownTrigger.on('click', (event) => {
+                        event.stopPropagation();
+                        this.app.ui.toggleNewItemDropdown(event);
+                    });
+                }
+                if (newItemOptions && newItemOptions.length) {
+                    newItemOptions.on('click', 'a', (event) => {
+                        event.preventDefault();
+                        const action = $(event.currentTarget).data('action');
+                        if (action === 'new-group') {
+                            this.app.data.createGroup();
+                        }
+                        this.app.ui.hideNewItemDropdown();
+                    });
+                }
+                $(document).on('click', (event) => {
+                    if (this.app.DOM.newItemOptions && !this.app.DOM.newItemOptions.hasClass('is-hidden') &&
+                        !$(event.target).closest('#new-item-btn').length &&
+                        !$(event.target).closest('#new-item-options').length) {
+                        this.app.ui.hideNewItemDropdown();
+                    }
+                    if (this.app.DOM.settingsActionMenu && !this.app.DOM.settingsActionMenu.hasClass('is-hidden') &&
+                        !$(event.target).closest('#settings-button-group').length) {
+                        this.app.ui.hideSettingsActionMenu();
+                    }
+                });
+                if (settingsBtnPanel && settingsBtnPanel.length) settingsBtnPanel.on('click', () => this.app.ui.showSettingsPanel());
+                if (settingsBtnMenuTrigger && settingsBtnMenuTrigger.length) {
+                    settingsBtnMenuTrigger.on('click', (event) => {
+                        event.stopPropagation();
+                        this.app.ui.toggleSettingsActionMenu();
+                    });
+                }
+                if (clearChatMenuItem && clearChatMenuItem.length) {
+                    clearChatMenuItem.on('click', (event) => {
+                        event.preventDefault();
+                        this.app.data.clearCurrentChat();
+                        this.app.ui.hideSettingsActionMenu();
+                    });
+                }
+                if (exportChatMenuItem && exportChatMenuItem.length) {
+                    exportChatMenuItem.on('click', (event) => {
+                        event.preventDefault();
+                        this.app.data.exportChats();
+                        this.app.ui.hideSettingsActionMenu();
+                    });
+                }
+                if (closeSettingsBtn && closeSettingsBtn.length) closeSettingsBtn.on('click', () => this.app.ui.hideSettingsPanel());
+                if (settingsOverlay && settingsOverlay.length) settingsOverlay.on('click', () => this.app.ui.hideSettingsPanel());
+                if (this.app.DOM.confirmModal && this.app.DOM.confirmModal.length) {
+                    this.app.DOM.confirmModal.find('#close-modal-btn').on('click', () => this.app.ui.hideConfirmationModal());
+                    this.app.DOM.confirmModal.find('#cancel-delete-btn').on('click', () => this.app.ui.hideConfirmationModal());
+                }
+                if (modelSelectorBtn && modelSelectorBtn.length) modelSelectorBtn.on('click', (e) => this.app.ui.toggleModelSelectorDropdown(e));
+                $(document).on('click', (event) => {
+                    const $target = $(event.target);
+                    if ($target.closest('.model-selector-option').length && this.app.DOM.modelOptionsContainer && $target.closest(this.app.DOM.modelOptionsContainer).length) {
+                        this.app.ui.selectModelOption($target.closest('.model-selector-option').data('value'));
+                    }
+                    else if (this.app.DOM.modelSelector && this.app.DOM.modelSelector.hasClass('open') && !$target.closest('.model-selector').length) {
+                        this.app.ui.selectModelOption(this.app.DOM.selectedModelDisplay.text());
+                    }
+                });
+                if (saveSettingsBtn && saveSettingsBtn.length) saveSettingsBtn.on('click', () => this.app.data.saveCurrentChatSettings());
+                if (historyList && historyList.length) {
+                    historyList.on('click', '.history-item', this.handleHistoryItemClick.bind(this));
+                    historyList.on('click', '.history-item .delete-btn', this.handleHistoryChatDeleteClick.bind(this));
+                    historyList.on('click', '.history-item .copy-btn', this.handleHistoryCopyClick.bind(this));
+                    historyList.on('click', '.history-item .edit-btn', this.handleHistoryEditBtnClick.bind(this));
+                    historyList.on('focusout', '.history-item .edit-name-input', this.handleHistoryEditFocusOut.bind(this));
+                    historyList.on('keypress', '.history-item .edit-name-input', this.handleHistoryEditKeyPress.bind(this));
+                    historyList.on('click', '.group-header', this.handleGroupHeaderClick.bind(this));
+                    historyList.on('click', '.group-actions .edit-group-btn', this.handleGroupEditClick.bind(this));
+                    historyList.on('click', '.group-actions .delete-group-btn', this.handleGroupDeleteClick.bind(this));
+                    historyList.on('focusout', '.group-header .edit-group-name-input', this.handleGroupEditFocusOut.bind(this));
+                    historyList.on('keypress', '.group-header .edit-group-name-input', this.handleGroupEditKeyPress.bind(this));
+                }
+                if (chatContainer && chatContainer.length) {
+                    chatContainer.on('dblclick', '.user-message', this.handleUserMessageDblClick.bind(this));
+                    chatContainer.on('click', '.edit-message-container .cancel-button', this.handleCancelEditUserMessageClick.bind(this));
+                    chatContainer.on('click', '.edit-message-container .save-button', this.handleSaveEditedUserMessageClick.bind(this));
+                    chatContainer.on('click', '.resend-btn', this.handleResendMessageClick.bind(this));
+                    chatContainer.on('click', '.auto-reply-button', this.handleAutoReplyClick.bind(this));
+                    chatContainer.on('click', '.assistant-think-toggle, .user-think-toggle', function () {
+                        const $thisToggle = $(this);
+                        $thisToggle.toggleClass('open');
+                        const $parentContainer = $thisToggle.closest('.user-think-container, .assistant-think-container, .collapsible-think-container');
+                        const $collapsibleContent = $parentContainer.find('.collapsible-think-parsed-content, .user-think-content, .assistant-think-content');
+                        $collapsibleContent.toggleClass('show');
+                    });
+                }
+                if (userProfileBtn && userProfileBtn.length) userProfileBtn.on('click', this.handleUserProfileBtnClick.bind(this));
+                if (startChatBtn && startChatBtn.length) startChatBtn.on('click', this.handleStartChatBtnClick.bind(this));
+                if (usernameInput && usernameInput.length) usernameInput.on('input', this.handleUsernameInput.bind(this));
+                $(window).on('resize', Utils.debounce(this.handleWindowResize.bind(this), 200));
+                if (tabButtons && tabButtons.length) tabButtons.on('click', this.handleTabButtonClick.bind(this));
+                if (chatSearchInput && chatSearchInput.length) {
+                    chatSearchInput.on('input', Utils.debounce(this.handleChatSearchInput.bind(this), 300));
+                    chatSearchInput.on('keypress', this.handleChatSearchKeypress.bind(this));
+                }
+                if (clearSearchBtn && clearSearchBtn.length) clearSearchBtn.on('click', this.handleClearSearchClick.bind(this));
+            }
+            handleSidebarToggleClick() {
+                const sidebar = this.app.DOM.sidebar;
+                if (!sidebar || !sidebar.length) return;
+                const isMobile = this.app.STATE.isMobileView;
+                let storageKey = isMobile ? APP_CONSTANTS.STORAGE_KEYS.SIDEBAR_MOBILE_STATE : APP_CONSTANTS.STORAGE_KEYS.SIDEBAR_DESKTOP_STATE;
+                sidebar.toggleClass('collapsed');
+                localStorage.setItem(storageKey, sidebar.hasClass('collapsed') ? 'collapsed' : 'expanded');
+            }
+            handleWindowResize() {
+                const newIsMobile = window.innerWidth <= 768;
+                if (newIsMobile !== this.app.STATE.isMobileView) {
+                    this.app.STATE.isMobileView = newIsMobile;
+                    this.app._applySidebarStateBasedOnScreen();
+                }
+                this.app.ui.adjustTextareaHeight();
+            }
+            handleClearChatClick() {
+                this.app.data.clearCurrentChat();
+            }
+            handleSendMessageClick() {
+                this.app.api.sendChatMessage();
+                this.app.DOM.messageInput.val('');
+                this.app.ui.adjustTextareaHeight();
+            }
+            handleMessageInputKeypress(event) {
+                if (event.key === 'Enter' && !event.shiftKey && !this.app.STATE.isWaitingForResponse) {
+                    event.preventDefault();
+                    this.app.api.sendChatMessage();
+                    this.app.DOM.messageInput.val('');
+                    this.app.ui.adjustTextareaHeight();
+                }
+            }
+            handleHistoryItemClick(event) {
+                const $historyItem = $(event.currentTarget);
+                if ($(event.target).closest('.history-item-actions button, .edit-name-input').length || $historyItem.hasClass('editing')) return;
+                this.app.data.loadChatById($historyItem.data('chat-id'));
+            }
+            handleHistoryChatDeleteClick(event) {
+                event.stopPropagation();
+                const $historyItem = $(event.currentTarget).closest('.history-item');
+                const chatId = $historyItem.data('chat-id');
+                const chatName = $historyItem.find('.history-name').text();
+                this.app.ui.showConfirmationModal(APP_CONSTANTS.MODAL_TYPES.CHAT_DELETE, chatId, chatName);
+            }
+            handleHistoryEditBtnClick(event) {
+                event.stopPropagation();
+                const $historyItem = $(event.currentTarget).closest('.history-item');
+                if (!$historyItem.hasClass('editing')) {
+                    this.app.ui.startEditingChatName($historyItem);
+                }
+            }
+            handleHistoryEditFocusOut(event) {
+                const $historyItem = $(event.currentTarget).closest('.history-item');
+                if ($historyItem.hasClass('editing')) {
+                    this.app.ui.finishEditingChatName($historyItem);
+                }
+            }
+            handleHistoryEditKeyPress(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const $historyItem = $(event.currentTarget).closest('.history-item');
+                    this.app.ui.finishEditingChatName($historyItem);
+                }
+            }
+            handleGroupHeaderClick(event) {
+                if ($(event.target).closest('.group-actions, .edit-group-name-input, .group-time-string').length) {
+                    return;
+                }
+                const groupId = $(event.currentTarget).closest('.history-group-item').data('group-id');
+                this.app.data.toggleGroupExpansion(groupId);
+            }
+            handleGroupEditClick(event) {
+                event.stopPropagation();
+                const groupHeaderElement = $(event.currentTarget).closest('.group-header');
+                this.app.ui.startEditingGroupName(groupHeaderElement);
+            }
+            handleGroupDeleteClick(event) {
+                event.stopPropagation();
+                const $groupItem = $(event.currentTarget).closest('.history-group-item');
+                const groupId = $groupItem.data('group-id');
+                const groupName = $groupItem.find('.group-name').text();
+                this.app.ui.showConfirmationModal(APP_CONSTANTS.MODAL_TYPES.GROUP_DELETE, groupId, groupName);
+            }
+            handleGroupEditFocusOut(event) {
+                const groupHeaderElement = $(event.currentTarget).closest('.group-header');
+                if (groupHeaderElement.hasClass('editing-group-name')) {
+                    this.app.ui.finishEditingGroupName(groupHeaderElement);
+                }
+            }
+            handleGroupEditKeyPress(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const groupHeaderElement = $(event.currentTarget).closest('.group-header');
+                    this.app.ui.finishEditingGroupName(groupHeaderElement);
+                }
+            }
+            handleUserMessageDblClick(event) {
+                const $userMessageDiv = $(event.currentTarget);
+                const $messageElement = $userMessageDiv.closest('[data-message-index]');
+                const messageIndex = parseInt($messageElement.data('message-index'));
+                const chat = this.app.data.getCurrentChat();
+                if (chat && chat.messages[messageIndex] && (chat.messages[messageIndex].isAutoReply || chat.messages[messageIndex].isAutoReplyOrigin)) {
+                    return;
+                }
+                this.app.ui.startEditUserMessage($userMessageDiv, messageIndex);
+            }
+            handleCancelEditUserMessageClick(event) {
+                this.app.ui.cancelEditUserMessage(event.currentTarget);
+            }
+            handleSaveEditedUserMessageClick(event) {
+                const $button = $(event.currentTarget);
+                const $messageElement = $button.closest('[data-message-index]');
+                const messageIndex = parseInt($messageElement.data('message-index'));
+                this.app.ui.saveEditedUserMessage(event.currentTarget, messageIndex);
+            }
+            handleResendMessageClick(event) {
+                event.stopPropagation();
+                if (this.app.STATE.isWaitingForResponse) {
+                    return;
+                }
+                const messageIndex = parseInt($(event.currentTarget).data('message-index'));
+                this.app.data.resendUserMessage(messageIndex);
+            }
+            handleHistoryCopyClick(event) {
+                event.stopPropagation();
+                const chatId = $(event.currentTarget).closest('.history-item').data('chat-id');
+                this.app.data.copyChat(chatId);
+            }
+            handleAutoReplyClick(event) {
+                event.stopPropagation();
+                if (this.app.STATE.isWaitingForResponse) {
+                    this.app.ui.notification.warning("请等待当前回复完成后再试。");
+                    return;
+                }
+                const $button = $(event.currentTarget);
+                const $messageElement = $button.closest('[data-message-index]');
+                const messageIndex = parseInt($messageElement.data('message-index'));
+                const chat = this.app.data.getCurrentChat();
+                if (!chat || messageIndex < 0 || messageIndex >= chat.messages.length) return;
+                chat.messages = chat.messages.slice(0, messageIndex + 1);
+                this.app.data.saveState();
+                this.app.ui.renderChatMessages(chat.messages);
+                this.app.api.sendAutoReplyRequest();
+            }
+            handleUserProfileBtnClick() {
+                this.app.ui.showUserLoginModal();
+            }
+            handleStartChatBtnClick() {
+                const { usernameInput } = this.app.DOM;
+                const username = usernameInput.val().trim();
+                if (username && /^[a-zA-Z0-9]+$/.test(username)) {
+                    localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.CURRENT_USER, username);
+                    this.app.STATE.currentUser = username;
+                    this.app.ui.updateUserProfileAvatar(username);
+                    this.app.ui.hideUserLoginModal();
+                } else {
+                    this.app.ui.notification.error('用户名不能为空且只能包含英文和数字。');
+                }
+            }
+            handleUsernameInput() {
+                const { usernameInput, startChatBtn } = this.app.DOM;
+                let username = usernameInput.val();
+                const sanitizedUsername = username.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                if (username !== sanitizedUsername) {
+                    usernameInput.val(sanitizedUsername);
+                }
+                startChatBtn.prop('disabled', !sanitizedUsername.trim());
+            }
+            handleTabButtonClick(event) {
+                const tabName = $(event.currentTarget).data('tab');
+                this.app.ui.switchSettingsTab(tabName);
+            }
+            handleMessageInputDraftSave() {
+                if (this.app.DOM.messageInput && this.app.DOM.messageInput.length) {
+                    localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.DRAFT_MESSAGE, this.app.DOM.messageInput.val());
+                }
+            }
+            handleChatSearchKeypress(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                }
+            }
+            handleChatSearchInput() {
+                const { chatSearchInput, clearSearchBtn } = this.app.DOM;
+                const searchTerm = chatSearchInput.val().trim();
+                if (clearSearchBtn && clearSearchBtn.length) {
+                    clearSearchBtn.toggleClass('is-hidden', searchTerm.length === 0);
+                }
+                this.app._filterHistory(searchTerm);
+            }
+            handleClearSearchClick() {
+                const { chatSearchInput, clearSearchBtn } = this.app.DOM;
+                if (chatSearchInput && chatSearchInput.length) chatSearchInput.val('');
+                if (clearSearchBtn && clearSearchBtn.length) clearSearchBtn.addClass('is-hidden');
+                this.app._filterHistory('');
+                if (chatSearchInput && chatSearchInput.length) chatSearchInput.trigger('focus');
+            }
+        }
+        class App {
+            constructor() {
+                this.DOM = {};
+                this.STATE = {
+                    currentChatId: null,
+                    isWaitingForResponse: false,
+                    chatToDelete: null,
+                    groupToDelete: null,
+                    isNewChat: false,
+                    currentModel: DEFAULT_ASSISTANT_SETTINGS.model,
+                    chats: [],
+                    groups: [],
+                    isMobileView: window.innerWidth <= 768,
+                    currentUser: null,
+                    currentSettingsTab: APP_CONSTANTS.SETTINGS_TABS.ASSISTANT
+                };
+                this.data = new DataManager(this);
+                this.ui = new UIManager(this);
+                this.api = new APIManager(this);
+                this.eventHandlers = new EventHandlerManager(this);
+            }
+            _initializeDOMReferences() {
+                this.DOM = {
+                    sidebar: $('#sidebar'),
+                    mainContent: $('.main-content'),
+                    chatContainer: $('#chat-container'),
+                    sidebarToggleBtn: $('#sidebar-toggle-btn'),
+                    historyList: $('#history-list'),
+                    newItemBtn: $('#new-item-btn'),
+                    newItemDropdownTrigger: $('#new-item-dropdown-trigger-area'),
+                    newItemOptions: $('#new-item-options'),
+                    chatSearchInput: $('#chat-search-input'),
+                    clearSearchBtn: $('#clear-search-btn'),
+                    chatName: $('#chat-name'),
+                    userProfileBtn: $('#user-profile-btn'),
+                    loggedInUsername: $('#current-username'),
+                    messageInput: $('#message-input'),
+                    sendBtn: $('#send-btn'),
+                    settingsBtnPanel: $('#settings-btn-panel'),
+                    settingsBtnMenuTrigger: $('#settings-btn-menu-trigger'),
+                    settingsActionMenu: $('#settings-action-menu'),
+                    clearChatMenuItem: $('#clear-chat-menu-item'),
+                    exportChatMenuItem: $('#export-chat-menu-item'),
+                    userLoginModal: $('#user-login-modal'),
+                    usernameInput: $('#username-input'),
+                    startChatBtn: $('#start-chat-btn'),
+                    confirmModal: $('#confirm-modal'),
+                    settingsPanel: $('#settings-panel'),
+                    settingsOverlay: $('#settings-overlay'),
+                    closeSettingsBtn: $('#close-settings-btn'),
+                    tabButtons: $('.tab-button'),
+                    modelSelector: $('.model-selector'),
+                    modelSelectorBtn: $('#model-selector-btn'),
+                    selectedModelDisplay: $('#selected-model'),
+                    modelOptionsContainer: $('#model-options-container'),
+                    streamingToggle: $('#streaming-toggle'),
+                    reasoningToggle: $('#reasoning-toggle'),
+                    systemInstructionInput: $('#system-instruction-input'),
+                    temperatureInput: $('#temperature-input'),
+                    topPInput: $('#top-p-input'),
+                    topKInput: $('#top-k-input'),
+                    repetitionPenaltyInput: $('#repetition-penalty-input'),
+                    streamingEndpointInput: $('#streaming-endpoint-input'),
+                    nonStreamingEndpointInput: $('#non-streaming-endpoint-input'),
+                    saveSettingsBtn: $('#save-settings-btn'),
+                    userMessageTemplate: $('#user-message-template').html(),
+                    assistantMessageTemplate: $('#assistant-message-template').html(),
+                    historyItemTemplate: $('#history-item-template').html(),
+                    historyGroupItemTemplate: $('#history-group-item-template').html(),
+                    historySectionTemplate: $('#history-section-template').html(),
+                    notificationTemplate: $('#notification-template').html(),
+                    initialChatEmptyStateTemplate: $('#initial-chat-empty-state-template').html(),
+                    historyListEmptyStateTemplate: $('#history-list-empty-state-template').html(),
+                    collapsibleThinkTemplateHTML: $('#collapsible-think-template').html(),
+                    notificationContainerTemplateHTML: $('#notification-container-template').html(),
+                    modelSelectorOptionTemplateHTML: $('#model-selector-option-template').html()
+                };
+            }
+            _loadInitialData() {
+                this.STATE.chats = JSON.parse(localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.CHATS)) || [];
+                this.STATE.chats.forEach(chat => {
+                    if (typeof chat.groupId === 'undefined') {
+                        chat.groupId = null;
+                    }
+                    chat.settings = $.extend(true, {}, DEFAULT_ASSISTANT_SETTINGS, chat.settings);
+                    chat.userSettings = $.extend(true, {}, DEFAULT_USER_SETTINGS, chat.userSettings);
+                });
+                this.data.loadGroups();
+                this.STATE.currentUser = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.CURRENT_USER);
+            }
+            _initializeUIAndEvents() {
+                this.ui.notification.init();
+                this._populateModelSelectorOptions();
+                this._applySidebarStateBasedOnScreen();
+                this.ui.renderChatHistory();
+                this.eventHandlers.attachEventListeners();
+                this.ui.adjustTextareaHeight();
+            }
+            _loadUserAndChatState() {
+                const { userLoginModal, messageInput } = this.DOM;
+                if (!this.STATE.currentUser || !/^[a-zA-Z0-9]+$/.test(this.STATE.currentUser)) {
+                    if (userLoginModal && userLoginModal.length) this.ui.showUserLoginModal();
+                } else {
+                    this.ui.updateUserProfileAvatar(this.STATE.currentUser);
+                }
+                const storedCurrentChatId = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.CURRENT_CHAT_ID);
+                let chatToLoad = null;
+                if (storedCurrentChatId) {
+                    chatToLoad = this.STATE.chats.find(chat => chat.id === storedCurrentChatId);
+                }
+                if (chatToLoad) {
+                    this.data.loadChatById(chatToLoad.id);
+                } else if (this.STATE.chats.length > 0) {
+                    const sortedChatsOnInit = [...this.STATE.chats].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    this.data.loadChatById(sortedChatsOnInit[0].id);
+                } else {
+                    this.data.createNewChat();
+                    const currentChat = this.data.getCurrentChat();
+                    if (currentChat) {
+                        const assistantSettings = currentChat.settings || DEFAULT_ASSISTANT_SETTINGS;
+                        this.ui.updateSelectedModelDisplay(Utils.getEffectiveSetting(assistantSettings, DEFAULT_ASSISTANT_SETTINGS, 'model'));
+                    }
+                }
+                const savedDraft = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.DRAFT_MESSAGE);
+                if (savedDraft && messageInput && messageInput.length) {
+                    messageInput.val(savedDraft);
+                    this.ui.adjustTextareaHeight();
+                }
+                if ((this.STATE.chats.length > 0 || this.STATE.currentChatId) && messageInput && messageInput.length) {
+                    messageInput.trigger('focus');
+                }
+            }
+            _applySidebarStateBasedOnScreen() {
+                const { sidebar } = this.DOM;
+                if (!sidebar || !sidebar.length) return;
+                let savedStateKey = this.STATE.isMobileView ? APP_CONSTANTS.STORAGE_KEYS.SIDEBAR_MOBILE_STATE : APP_CONSTANTS.STORAGE_KEYS.SIDEBAR_DESKTOP_STATE;
+                let savedState = localStorage.getItem(savedStateKey);
+                let shouldBeCollapsed;
+                if (this.STATE.isMobileView) {
+                    shouldBeCollapsed = (savedState === null) ? true : (savedState === 'collapsed');
+                } else {
+                    shouldBeCollapsed = (savedState === 'collapsed');
+                }
+                sidebar.toggleClass('collapsed', shouldBeCollapsed);
+            }
+            _populateModelSelectorOptions() {
+                const { modelOptionsContainer, modelSelectorOptionTemplateHTML } = this.DOM;
+                if (!modelOptionsContainer || !modelOptionsContainer.length || !modelSelectorOptionTemplateHTML) {
+                    console.warn("Model selector options container or template not found.");
+                    return;
+                }
+                modelOptionsContainer.empty();
+                Object.keys(DEFAULT_MODEL_LIST).forEach(modelKey => {
+                    const modelData = DEFAULT_MODEL_LIST[modelKey];
+                    const $optionElement = $(modelSelectorOptionTemplateHTML);
+                    $optionElement.attr('data-value', modelKey);
+                    $optionElement.find('.model-name').text(modelData.name);
+                    $optionElement.find('.model-description').text(modelData.description);
+                    modelOptionsContainer.append($optionElement);
+                });
+            }
+            _filterHistory(searchTerm) {
+                if (!searchTerm) {
+                    this.ui.renderChatHistory();
+                    return;
+                }
+                const lowerCaseSearchTerm = searchTerm.toLowerCase();
+                const filteredChats = this.STATE.chats.filter(chat => {
+                    const chatNameMatches = chat.name.toLowerCase().includes(lowerCaseSearchTerm);
+                    const messageContentMatches = chat.messages.some(message =>
+                        message.content && message.content.toLowerCase().includes(lowerCaseSearchTerm)
+                    );
+                    return chatNameMatches || messageContentMatches;
+                });
+                const filteredGroupIds = this.STATE.groups
+                    .filter(group => group.name.toLowerCase().includes(lowerCaseSearchTerm))
+                    .map(group => group.id);
+                const chatsInMatchedGroups = this.STATE.chats.filter(chat =>
+                    filteredGroupIds.includes(chat.groupId) &&
+                    !filteredChats.some(fc => fc.id === chat.id)
+                );
+                const allFilteredChats = [...new Set([...filteredChats, ...chatsInMatchedGroups])];
+                this.ui.renderChatHistory(allFilteredChats);
+            }
+            init() {
+                this._initializeDOMReferences();
+                this._loadInitialData();
+                this._initializeUIAndEvents();
+                this._loadUserAndChatState();
+            }
+        }
+        let app;
+        $(document).ready(() => {
+            app = new App();
+            app.init();
+            window.chatApp = app;
+        });
+    })();
+  </script>
+</head>
+
+<body class="bg-white h-screen overflow-hidden">
+<div class="sidebar flex flex-col h-full common-transition" id="sidebar">
+  <div class="p-3 border-b border-gray-200 flex flex-col gap-2 h-auto">
+    <div class="new-item-dropdown-container relative">
+      <button class="common-transition common-transform-transition" id="new-item-btn">
+                    <span class="main-action-area">
+                        <i class="fas fa-plus"></i>
+                        <span id="new-item-btn-text">新建对话</span>
+                    </span> <span id="new-item-dropdown-trigger-area">
+                        <i class="fas fa-chevron-down" id="new-item-dropdown-trigger"></i>
+                    </span>
+      </button>
+      <div class="is-hidden common-transition" id="new-item-options">
+        <a class="common-transition" data-action="new-group" href="#">新建分组</a>
+      </div>
+    </div>
+  </div>
+  <div class="p-2 border-b">
+    <div class="relative flex items-center px-1">
+      <i class="fas fa-search text-gray-400 ml-2"></i> <input class="flex-1 text-sm bg-transparent pl-2 pr-8 py-2" id="chat-search-input" placeholder="搜索对话和分组" type="text">
+      <button class="is-hidden absolute right-2 text-gray-500 hover:text-gray-700 focus:outline-none common-transition" id="clear-search-btn">
+        <i class="fas fa-times-circle"></i>
+      </button>
+    </div>
+  </div>
+  <div class="flex-1 overflow-y-auto p-2" id="history-list"></div>
+</div>
+<div class="main-content flex flex-col h-full">
+  <div class="bg-white border-b p-4">
+    <div class="header-container">
+      <div class="flex items-center gap-3">
+        <button aria-label="Toggle sidebar" class="user-profile-btn common-transition common-transform-transition flex items-center justify-center h-[40px] w-[40px] p-0" id="sidebar-toggle-btn">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+      </div>
+      <div class="flex-1 text-center px-3">
+        <h2 class="text-lg font-semibold text-gray-800 truncate" id="chat-name">新对话</h2>
+      </div>
+      <button class="user-profile-btn common-transition common-transform-transition flex items-center space-x-2 h-[40px]" id="user-profile-btn">
+        <div class="user-avatar-small"><i class="fas fa-user"></i>
+        </div>
+        <span class="font-medium text-sm" id="current-username"></span>
+      </button>
+    </div>
+  </div>
+  <div class="flex-1 overflow-y-auto p-4 space-y-4" id="chat-container"></div>
+  <div class="bg-white">
+    <div class="input-container flex flex-col items-center bg-white border border-gray-300 rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-1 focus-within:ring-offset-white transition-all duration-150 mx-auto my-2" style="min-height: 50px; padding: 4px 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+      <div class="w-full flex justify-between items-center mb-0">
+        <div class="relative flex items-center ml-auto" id="settings-button-group">
+          <div class="inline-flex rounded-lg">
+            <button class="flex items-center space-x-1.5 py-1.5 bg-white text-sm font-medium rounded-l-lg common-transition" id="settings-btn-panel" title="对话设置" type="button">
+              <i class="fas fa-cog text-gray-500"></i> <span>对话设置</span>
+            </button>
+            <button class="flex items-center bg-white text-sm font-medium px-3 text-gray-700 rounded-r-lg common-transition" id="settings-btn-menu-trigger" title="更多操作" type="button">
+              <i class="fas fa-chevron-down text-xs text-gray-500 duration-200"></i>
+            </button>
+          </div>
+          <div class="is-hidden absolute bottom-full left-0 mb-1 w-auto min-w-[140px] bg-white/80 backdrop-blur-md rounded-xl shadow-xl border border-gray-200/80 z-50 overflow-hidden" id="settings-action-menu">
+            <a class="flex items-center px-4 py-3 text-sm text-gray-800" href="#" id="clear-chat-menu-item"> <i class="fas fa-trash-alt fa-fw mr-3 text-gray-500 group-hover:text-white transition-colors"></i> <span>清空对话</span> </a>
+            <div class="settings-action-menu-separator"></div>
+            <a class="flex items-center px-4 py-3 text-sm text-gray-800" href="#" id="export-chat-menu-item"> <i class="fas fa-download fa-fw mr-3 text-gray-500 group-hover:text-white transition-colors"></i> <span>导出对话</span> </a>
+            <div class="settings-action-menu-separator"></div>
+            <a class="flex items-center px-4 py-3 text-sm text-gray-800" href="#" id="share-chat-menu-item"> <i class="fas fa-share-alt fa-fw mr-3 text-gray-500 group-hover:text-white transition-colors"></i> <span>分享对话</span> </a>
+          </div>
+        </div>
+      </div>
+      <div class="w-full border-t border-gray-200 my-2"></div>
+      <div class="w-full flex items-center bg-white rounded-xl relative" style="min-height: 44px;">
+                    <textarea class="flex-1 w-full self-stretch bg-transparent focus:outline-none pl-2 pr-1 py-1 text-[15px] placeholder-gray-500 resize-none rounded-xl common-transition" id="message-input" placeholder="开始输入 ..." rows="1"></textarea>
+        <button class="flex-shrink-0 mr-1 my-0.5 rounded-[10px] text-white bg-blue-500 hover:bg-blue-600 active:bg-blue-700 common-transition common-transform-transition disabled:opacity-50 disabled:bg-gray-400 relative flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500" id="send-btn" style="width: 36px; height: 36px;">
+          <i class="fas fa-paper-plane text-base"></i> <span class="sending-spinner"></span></button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center is-hidden z-50" id="confirm-modal">
+  <div class="modal-content bg-white p-6 max-w-sm w-full mx-4">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-semibold">确认操作</h3>
+      <button class="text-gray-600 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-200 common-transition" id="close-modal-btn">
+        <i class="fas fa-times text-md"></i>
+      </button>
+    </div>
+    <p class="mb-6 text-gray-700 text-[15px] modal-message-content">确定要执行此操作吗？</p>
+    <div class="flex justify-end space-x-3">
+      <button class="px-4 py-2 text-[#007aff] hover:bg-[#007aff]/10 rounded-lg common-transition font-medium text-[15px]" id="cancel-delete-btn">取消
+      </button>
+      <button class="px-4 py-2 bg-[#ff3b30] text-white rounded-lg hover:bg-[#ff3b30]/90 common-transition font-medium text-[15px] confirm-action-btn" id="confirm-delete-btn">确认
+      </button>
+    </div>
+  </div>
+</div>
+<div class="fixed inset-0 bg-black/40 flex items-center justify-center is-hidden z-50" id="user-login-modal">
+  <div class="modal-content bg-white p-8 max-w-md w-full mx-4 text-center">
+    <div class="user-avatar-large mx-auto mb-6"><i class="fas fa-user"></i>
+    </div>
+    <h2 class="text-xl font-semibold mb-5 text-gray-800">输入你的 UM</h2>
+    <input class="w-full mb-2 text-center text-lg input-focus-style common-transition" id="username-input" maxlength="20" placeholder="例如：PINGXIAOAN007" type="text">
+    <p class="text-xs text-gray-500 mb-6">只能包含英文和数字</p>
+    <button class="w-full common-transition common-transform-transition" id="start-chat-btn">
+      开始聊天
+    </button>
+  </div>
+</div>
+<div class="settings-panel common-transition" id="settings-panel">
+  <div class="settings-header">
+    <h3 class="text-lg font-semibold">对话设置</h3>
+    <div class="flex items-center gap-3">
+      <button class="text-gray-600 hover:text-gray-800 p-1.5 rounded-full hover:bg-gray-100 common-transition" id="close-settings-btn">
+        <i class="fas fa-times text-md"></i>
+      </button>
+    </div>
+  </div>
+  <div class="settings-tabs">
+    <button class="tab-button common-transition" data-tab="assistant">助手</button>
+    <button class="tab-button common-transition" data-tab="user">用户</button>
+  </div>
+  <div class="settings-content px-5 pt-2">
+    <div class="space-y-4" id="shared-settings-form">
+      <div class="model-selector relative w-full">
+        <label class="settings-label">对话模型</label>
+        <div class="model-selector-btn common-transition flex items-center justify-between w-full bg-white border border-[#d2d2d7] rounded-[10px] px-3.5 py-2.5 cursor-pointer hover:bg-[#f5f5f7]" id="model-selector-btn">
+          <div class="flex-1">
+            <div class="model-name font-medium text-sm" id="selected-model"></div>
+            <div class="model-description text-xs text-gray-500 mt-1"></div>
+          </div>
+          <i class="fas fa-chevron-down text-sm text-gray-500 transition-transform duration-200"></i>
+        </div>
+        <div class="model-selector-options absolute z-10 mt-2 w-full bg-white border border-[#d2d2d7] rounded-[12px] shadow-[0_6px_16px_rgba(0,0,0,0.12)] py-1 common-transition opacity-0 scale-95 origin-top" id="model-options-container"></div>
+      </div>
+      <div class="settings-form-group">
+        <label class="settings-label">系统指令</label> <textarea class="settings-input settings-textarea input-focus-style common-transition" id="system-instruction-input" rows="2"></textarea>
+      </div>
+      <div class="settings-form-group">
+        <div class="flex items-center justify-between">
+          <label class="settings-label mb-0">流式输出 <span class="text-xs text-gray-500 ml-2">是否启用流式输出</span> </label> <label class="stream-toggle"> <input id="streaming-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span>
+          <span class="stream-toggle-text off">关</span> </label>
+        </div>
+      </div>
+      <div class="settings-form-group">
+        <div class="flex items-center justify-between">
+          <label class="settings-label mb-0">深度思考 <span class="text-xs text-gray-500 ml-2">是否启用深度思考（混合模型）</span> </label> <label class="stream-toggle"> <input id="reasoning-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span>
+          <span class="stream-toggle-text off">关</span> </label>
+        </div>
+      </div>
+      <details class="settings-details" open>
+        <summary>模型参数</summary>
+        <div class="settings-details-content">
+          <div class="settings-param-grid">
+            <div class="settings-param-group">
+              <label class="settings-label">温度</label> <input class="settings-input input-focus-style common-transition" id="temperature-input" min="0.0" step="0.1" type="number">
+              <p class="text-xs text-gray-500 mt-1">控制随机性 (0=确定性)</p>
+            </div>
+            <div class="settings-param-group">
+              <label class="settings-label">Top P</label> <input class="settings-input input-focus-style common-transition" id="top-p-input" min="0.0" step="0.1" type="number">
+              <p class="text-xs text-gray-500 mt-1">核心采样阈值</p>
+            </div>
+            <div class="settings-param-group">
+              <label class="settings-label">Top K</label> <input class="settings-input input-focus-style common-transition" id="top-k-input" min="0" step="1" type="number">
+              <p class="text-xs text-gray-500 mt-1">限制为前 K 个 token</p>
+            </div>
+            <div class="settings-param-group">
+              <label class="settings-label">Repetition Penalty</label> <input class="settings-input input-focus-style common-transition" id="repetition-penalty-input" min="0" step="0.1" type="number">
+              <p class="text-xs text-gray-500 mt-1">惩罚重复的 token</p>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="settings-details">
+        <summary>API 设置</summary>
+        <div class="settings-details-content">
+          <div class="space-y-4">
+            <div class="settings-form-group">
+              <label class="settings-label">流式接口地址</label> <input class="settings-input input-focus-style common-transition" id="streaming-endpoint-input" type="text">
+            </div>
+            <div class="settings-form-group">
+              <label class="settings-label">非流式接口地址</label> <input class="settings-input input-focus-style common-transition" id="non-streaming-endpoint-input" type="text">
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="mt-6 p-5 border-t border-gray-200">
+      <button class="w-full bg-blue-600 text-white hover:bg-blue-700 common-transition common-transform-transition" id="save-settings-btn">保存
+      </button>
+    </div>
+  </div>
+</div>
+<div class="settings-overlay common-transition" id="settings-overlay"></div>
+<div id="template-library" style="display: none;">
+  <template id="user-message-template">
+    <div class="flex flex-col items-end mb-3" data-message-type="user">
+      <div class="flex items-center space-x-2 mb-2">
+        <div class="text-xs text-gray-500 user-name-display">You</div>
+        <div class="avatar user-avatar"><i class="fas fa-user"></i></div>
+      </div>
+      <div class="max-w-[50%] relative">
+        <div class="p-3 user-message markdown-body common-transition"></div>
+        <div class="edit-message-container is-hidden">
+          <div class="relative">
+            <textarea class="edit-textarea input-focus-style common-transition" rows="4"></textarea>
+            <div class="edit-buttons">
+              <button class="edit-button cancel-button common-transition common-transform-transition flex items-center justify-center"><i class="fas fa-times"></i></button>
+              <button class="edit-button save-button common-transition common-transform-transition flex items-center justify-center"><i class="fas fa-check"></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="text-xs text-gray-500 mt-1 text-right relative group">
+          <span class="timestamp"></span> <span class="elapsed-time ml-2"></span> <span class="streaming-status ml-2 px-1.5 py-0.5 text-xs"></span>
+          <button class="resend-btn absolute inset-0 flex items-center justify-end pr-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white bg-opacity-75 backdrop-blur-sm rounded-md is-hidden">
+            <i class="fas fa-redo mr-0.5 text-xs"></i>重新发送
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="assistant-message-template">
+    <div class="flex flex-col items-start mb-3 assistant-message-wrapper" data-message-type="assistant">
+      <div class="flex items-center space-x-2 mb-2">
+        <div class="avatar assistant-avatar"><i class="fas fa-robot"></i></div>
+        <div class="text-xs text-gray-500 model-name-display">Assistant</div>
+      </div>
+      <div class="max-w-[50%] group">
+        <div class="assistant-message markdown-body common-transition"></div>
+        <div class="text-xs text-gray-500 mt-1 flex justify-between items-center">
+          <div class="flex items-center">
+            <span class="timestamp"></span> <span class="elapsed-time ml-2"></span> <span class="streaming-status ml-2 px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs"></span>
+          </div>
+          <button class="auto-reply-button ml-2 text-blue-600 text-xs opacity-0 group-hover:opacity-100 common-transition duration-200">
+            <i class="fas fa-reply mr-0.5"></i> 自动回复
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="history-item-template">
+    <div class="history-item p-2.5 flex justify-between items-center group common-transition" draggable="true">
+      <div class="flex-1 min-w-0 mr-2"><span class="history-name truncate text-[13px]"></span> <input class="edit-name-input input-focus-style common-transition is-hidden" maxlength="40" type="text">
+      </div>
+      <div class="flex items-center">
+                    <span class="time-string text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 common-transition mr-2"></span>
+        <div class="history-item-actions">
+          <button class="edit-btn action-icon-button common-transition" title="重命名">
+            <i class="fas fa-pencil-alt text-xs"></i>
+          </button>
+          <button class="copy-btn action-icon-button common-transition" title="复制">
+            <i class="fas fa-copy text-xs"></i>
+          </button>
+          <button class="delete-btn action-icon-button common-transition" title="删除">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+  <template id="history-group-item-template">
+    <div class="history-group-item" data-group-id="">
+      <div class="group-header p-2.5 flex items-center group hover:bg-gray-50 rounded-md common-transition">
+        <i class="fas fa-chevron-right group-toggle-icon text-gray-500 mr-2 common-transition duration-200"></i> <span class="group-name flex-1 truncate font-medium text-sm text-gray-700"></span> <input class="edit-group-name-input input-focus-style common-transition is-hidden" maxlength="30" type="text">
+        <span class="group-time-string text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 common-transition ml-auto mr-2"></span>
+        <div class="group-actions flex items-center space-x-1">
+          <button class="edit-group-btn action-icon-button common-transition p-1.5 rounded-md text-gray-500" title="重命名">
+            <i class="fas fa-pencil-alt text-xs"></i>
+          </button>
+          <button class="delete-group-btn action-icon-button common-transition p-1.5 rounded-md text-gray-500" title="删除">
+            <i class="fas fa-trash text-xs"></i>
+          </button>
+        </div>
+      </div>
+      <div class="group-chat-list pl-5 mt-1" style="display: none;"></div>
+    </div>
+  </template>
+  <template id="history-section-template">
+    <div class="history-section">
+      <div class="history-section-name"></div>
+    </div>
+  </template>
+  <template id="notification-template">
+    <div class="notification"><i class="fas"></i> <span></span></div>
+  </template>
+  <template id="initial-chat-empty-state-template">
+    <div class="flex flex-col items-center justify-center h-full text-gray-500">
+      <i class="fas fa-comment-dots text-4xl mb-4"></i>
+      <p class="text-xl font-light">开始新的对话</p>
+    </div>
+  </template>
+  <template id="history-list-empty-state-template">
+    <div class="history-empty-state">
+      <div class="history-empty-icon"><i class="fas fa-comments"></i></div>
+      <p>暂无对话记录或分组</p>
+    </div>
+  </template>
+  <template id="collapsible-think-template">
+    <div class="collapsible-think-container">
+      <div class="collapsible-think-toggle"><i class="fas fa-chevron-right"></i> <span>深度思考</span>
+      </div>
+      <div class="collapsible-think-parsed-content"></div>
+    </div>
+  </template>
+  <template id="notification-container-template">
+    <div class="notification-container"></div>
+  </template>
+  <template id="model-selector-option-template">
+    <div class="model-selector-option common-transition" data-value="">
+      <div class="model-name font-medium text-sm"></div>
+      <div class="model-description text-xs text-gray-500 mt-1"></div>
+    </div>
+  </template>
+</div>
+</body>
+
+</html>

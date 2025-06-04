@@ -16,10 +16,12 @@ public class CodeUtilsTest {
     public void cleanFile() {
         try {
             CodeUtils.clean(new File("D:\\Workspace\\chat-demo\\src\\main\\resources\\static\\chat.html"));
+            CodeUtils.clean(new File("D:\\Workspace\\chat-demo\\src\\main\\resources\\static\\style\\chat.css"));
         } catch (IOException e) {
         }
         try {
             CodeUtils.clean(new File("/Users/zhen/Documents/Workspace/java/chat-demo/src/main/resources/static/chat.html"));
+            CodeUtils.clean(new File("/Users/zhen/Documents/Workspace/java/chat-demo/src/main/resources/static/style/chat.css"));
         } catch (IOException e) {
         }
     }

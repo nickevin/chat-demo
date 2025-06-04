@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="UTF-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -9,1339 +8,7 @@
   <script src="script/tailwindcss@3.4.16.js"></script>
   <script src="script/marked@15.0.11.js"></script>
   <link href="style/fontawesome.min.css" rel="stylesheet">
-  <style>
-    body {
-        font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica", "Arial", sans-serif;
-        color: #1d1d1f;
-    }
-
-    .is-hidden {
-        display: none !important;
-    }
-
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.25);
-        border-radius: 3px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 0, 0, 0.35);
-    }
-
-    .sidebar {
-        background-color: #F2F2F7;
-        border-right: 1px solid #d2d2d7;
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 300px;
-        overflow: auto;
-        z-index: 20;
-    }
-
-    .sidebar.collapsed {
-        transform: translateX(-100%);
-    }
-
-    .main-content {
-        margin-left: 310px;
-        transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .sidebar.collapsed~.main-content {
-        margin-left: 0;
-    }
-
-    .header-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        width: 100%;
-    }
-
-    .header-content {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .input-container {
-        max-width: 800px;
-        margin: 0 auto;
-        width: calc(100% - 28px);
-        display: flex;
-        align-items: center;
-        background-color: white;
-        padding: 8px 16px;
-    }
-
-    #message-input {
-        font-size: 15px;
-        resize: none;
-        overflow: hidden;
-        flex-grow: 1;
-    }
-
-    #message-input:focus {
-        outline: none;
-    }
-
-    #new-item-btn.disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-
-    .common-transition {
-        transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.2s;
-    }
-
-    .common-transform-transition {
-        transition-property: transform;
-        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-        transition-duration: 0.15s;
-    }
-
-    .input-focus-style:focus {
-        border-color: #007aff !important;
-        box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.25) !important;
-        outline: none !important;
-    }
-
-    #send-btn {
-        position: absolute;
-        bottom: 4px;
-        right: 0px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-
-    #send-btn:active:not(:disabled) {
-        transform: scale(0.9);
-        transition-duration: 0.05s !important;
-    }
-
-    #send-btn:disabled {
-        transform: scale(1);
-        opacity: 0.6 !important;
-        cursor: default;
-    }
-
-    #send-btn .fa-paper-plane {
-        display: inline-block;
-    }
-
-    #send-btn.sending .fa-paper-plane {
-        display: none;
-    }
-
-    #send-btn.sending .sending-spinner {
-        display: inline-block;
-    }
-
-    .sending-spinner {
-        display: none;
-        width: 20px;
-        height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #ffffff;
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-    }
-
-    .user-profile-btn {
-        background-color: #f0f0f0;
-        border: none;
-        border-radius: 10px;
-        padding: 8px 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    }
-
-    .user-profile-btn:hover {
-        background-color: #e0e0e0;
-        transform: translateY(-1px);
-    }
-
-    .user-profile-btn:active {
-        transform: scale(0.98);
-        background-color: #d0d0d0;
-    }
-
-    .edit-buttons {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-        justify-content: flex-end;
-        position: absolute;
-        bottom: 18px;
-        right: 12px;
-    }
-
-    .edit-button {
-        padding: 8px 14px;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-    }
-
-    .edit-button:active {
-        transform: scale(0.95);
-    }
-
-    .save-button {
-        background-color: #007AFF;
-        color: white;
-        border: none;
-        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
-    }
-
-    .save-button:hover {
-        background-color: #006FE6;
-    }
-
-    .cancel-button {
-        background-color: #E5F1FF;
-        color: #007aff;
-        border: none;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .cancel-button:hover {
-        background-color: white;
-    }
-
-    #start-chat-btn {
-        background-color: #007aff;
-        color: white;
-        border-radius: 10px;
-        padding: 12px 20px;
-        font-size: 17px;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
-    }
-
-    #start-chat-btn:hover:not(:disabled) {
-        background-color: #006fe6;
-        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
-    }
-
-    #start-chat-btn:active:not(:disabled) {
-        transform: scale(0.95);
-        background-color: #005bb5;
-        transition-duration: 0.05s !important;
-        box-shadow: 0 1px 4px rgba(0, 122, 255, 0.2);
-    }
-
-    #start-chat-btn:disabled {
-        background-color: #e5e5ea !important;
-        color: #b0b0b5 !important;
-        cursor: default;
-        box-shadow: none;
-    }
-
-    .edit-textarea {
-        padding: 10px 15px;
-        border-radius: 12px;
-        border: 1px solid #d2d2d7;
-        font-size: 15px;
-        min-height: 100px;
-        min-width: 250px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    #username-input {
-        border-radius: 10px;
-        padding: 12px 16px;
-        font-size: 16px;
-        border: 1px solid #d2d2d7;
-    }
-
-    .edit-name-input,
-    .edit-group-name-input {
-        width: 100%;
-        padding: 6px 10px;
-        border: 1px solid #d2d2d7;
-        font-size: 13px;
-        border-radius: 6px;
-    }
-
-    .edit-group-name-input {
-        font-size: 14px;
-        font-weight: 500;
-        flex-grow: 1;
-    }
-
-    .edit-textarea,
-    #username-input,
-    .edit-name-input,
-    .edit-group-name-input,
-    .settings-input,
-    .settings-panel select {}
-
-    .edit-textarea:focus,
-    #username-input:focus,
-    .edit-name-input:focus,
-    .edit-group-name-input:focus,
-    .settings-input:focus,
-    .settings-panel select:focus {}
-
-    #confirm-modal,
-    #user-login-modal {
-        backdrop-filter: blur(5px);
-    }
-
-    .modal-content {
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
-    }
-
-    .modal-enter .modal-content {
-        animation: modalFadeIn 0.3s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-    }
-
-    .modal-exit .modal-content {
-        animation: modalFadeOut 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-    }
-
-    #confirm-modal.modal-enter,
-    #confirm-modal.modal-exit {
-        display: flex;
-    }
-
-    .notification-container {
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        z-index: 100;
-    }
-
-    .notification {
-        border-radius: 12px;
-        padding: 14px 18px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        max-width: 80%;
-        margin: 0 auto 14px auto;
-        display: flex;
-        align-items: center;
-        border: 1px solid;
-        opacity: 0;
-        transform: translateY(10px) scale(0.95);
-        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        min-width: 300px;
-        max-width: 500px;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-
-    .notification.show {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-
-    .notification i {
-        margin-right: 8px;
-    }
-
-    .notification.success {
-        background-color: rgba(52, 199, 89, 0.15);
-        border-color: rgba(52, 199, 89, 0.25);
-        color: #34C759;
-    }
-
-    .notification.warning {
-        background-color: rgba(255, 204, 0, 0.15);
-        border-color: rgba(255, 204, 0, 0.25);
-        color: #FFCC00;
-    }
-
-    .notification.error {
-        background-color: rgba(255, 59, 48, 0.15);
-        border-color: rgba(255, 59, 48, 0.25);
-        color: #FF3B30;
-    }
-
-    .notification.info {
-        background-color: rgba(0, 122, 255, 0.15);
-        border-color: rgba(0, 122, 255, 0.25);
-        color: #007AFF;
-    }
-
-    #chat-container {
-        scroll-behavior: smooth;
-        padding: 16px;
-    }
-
-    .user-message {
-        background-color: #0090FF;
-        color: white;
-        border-radius: 18px 5px 18px 18px;
-        cursor: pointer;
-        padding: 5px 10px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        min-width: 80px;
-    }
-
-    .user-message:hover {
-        background-color: #0A84FF;
-    }
-
-    .user-message.no-hover-style {
-        cursor: default;
-        transition: none;
-        box-shadow: none;
-    }
-
-    .user-message.no-hover-style:hover {
-        background-color: #0090FF;
-    }
-
-    .assistant-message {
-        background-color: #E5E5EA;
-        border-radius: 5px 18px 18px 18px;
-        padding: 10px 15px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    }
-
-    .assistant-message:hover {
-        background-color: #D8D8DC;
-    }
-
-    .avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 15px;
-        flex-shrink: 0;
-    }
-
-    .user-avatar,
-    .assistant-avatar {
-        background-color: #e5e5ea;
-        color: #636366;
-    }
-
-    .user-avatar-small {
-        background-color: #e5e5ea;
-        color: #636366;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        font-size: 14px;
-    }
-
-    .user-avatar-large {
-        background-color: #e5e5ea;
-        color: #636366;
-        font-size: 48px;
-        font-weight: 700;
-        width: 92px;
-        height: 92px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
-    }
-
-    .spinner {
-        color: #8e8e93;
-    }
-
-    .assistant-think-container,
-    .user-think-container {
-        border-radius: 10px;
-        padding: 8px 12px;
-        position: relative;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .assistant-think-container {
-        background-color: #EBEBF0;
-    }
-
-    .user-think-container {
-        background-color: #419CFF;
-    }
-
-    .assistant-think-content,
-    .user-think-content {
-        display: none;
-        padding: 6px 0;
-        font-size: 14px;
-    }
-
-    .assistant-think-content {
-        color: #333;
-    }
-
-    .user-think-content {
-        color: white;
-    }
-
-    .assistant-think-content.show,
-    .user-think-content.show {
-        display: block;
-    }
-
-    .assistant-think-toggle {
-        cursor: pointer;
-        font-size: 0.85em;
-        display: flex;
-        align-items: center;
-        font-weight: 600;
-    }
-
-    .assistant-think-toggle i {
-        margin-right: 4px;
-        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .assistant-think-toggle.open i {
-        transform: rotate(90deg);
-    }
-
-    .user-think-toggle {
-        color: white;
-    }
-
-    .normal-content {}
-
-    .normal-content:first-child {
-        margin-top: 0;
-        border-top: none;
-        padding-top: 0;
-    }
-
-    .assistant-think-container+.normal-content,
-    .user-think-container+.normal-content {
-        padding-top: 10px;
-    }
-
-    .normal-content.is-empty-placeholder {
-        display: none;
-    }
-
-    .history-item {
-        margin-bottom: 4px;
-        padding: 10px 14px;
-        border-radius: 8px;
-    }
-
-    .history-item:hover {
-        background-color: rgba(0, 122, 255, 0.08);
-        cursor: pointer;
-    }
-
-    .history-item.active {
-        background-color: rgba(0, 122, 255, 0.12);
-        border-left: 3px solid #007aff;
-        font-weight: 600;
-        cursor: pointer;
-        padding-left: calc(14px - 3px);
-    }
-
-    .history-item.dragging {
-        opacity: 0.5;
-        border: 2px dashed #007aff;
-    }
-
-    .history-item .history-name {
-        font-size: 13px;
-    }
-
-    .history-item.editing .edit-name-input {}
-
-    .history-item.editing .history-name {}
-
-    .history-item-actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .history-item:hover .history-item-actions {
-        opacity: 1;
-    }
-
-    .action-icon-button {
-        background: none;
-        border: none;
-        color: #86868b;
-        padding: 5px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        cursor: pointer;
-    }
-
-    .history-item-actions button {}
-
-    .history-item-actions .edit-btn:hover {
-        background-color: rgba(0, 0, 0, 0.07);
-        color: #1d1d1f;
-    }
-
-    .history-item-actions .copy-btn:hover {
-        background-color: rgba(0, 122, 255, 0.07);
-        color: #007aff;
-    }
-
-    .history-item-actions .delete-btn:hover {
-        background-color: rgba(255, 59, 48, 0.1);
-        color: #FF3B30;
-    }
-
-    .history-section {
-        margin-top: 12px;
-    }
-
-    .history-section-name {
-        font-size: 13px;
-        font-weight: 600;
-        color: #86868b;
-        text-transform: none;
-        letter-spacing: 0;
-        padding: 10px 14px;
-        margin-top: 8px;
-    }
-
-    .history-empty-state {
-        text-align: center;
-        color: #86868b;
-        padding: 24px 14px;
-        font-size: 14px;
-    }
-
-    .history-empty-icon {
-        font-size: 26px;
-        margin-bottom: 8px;
-    }
-
-    .history-group-item {
-        margin-bottom: 8px;
-        background-color: transparent;
-        border-radius: 8px;
-    }
-
-    .group-header {
-        display: flex;
-        align-items: center;
-        padding: 8px 10px;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        border-radius: 6px;
-    }
-
-    .history-group-item:hover .group-header:not(.editing-group-name) {
-        background-color: rgba(0, 0, 0, 0.03);
-    }
-
-    .group-header.editing-group-name {
-        background-color: rgba(0, 122, 255, 0.05);
-    }
-
-    .group-toggle-icon {
-        color: #86868b;
-        margin-right: 8px;
-        transition: transform 0.2s ease;
-        padding: 4px;
-    }
-
-    .group-header.expanded .group-toggle-icon {
-        transform: rotate(90deg);
-    }
-
-    .group-name {
-        flex-grow: 1;
-        font-size: 14px;
-        font-weight: 500;
-        color: #1d1d1f;
-        padding: 4px 0;
-    }
-
-    .group-header.editing-group-name .group-name {}
-
-    .group-actions {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        margin-left: auto;
-    }
-
-    .group-header:hover .group-actions,
-    .group-header.editing-group-name .group-actions {
-        opacity: 1;
-    }
-
-    .group-actions button {}
-
-    .group-actions button:hover:not(.delete-group-btn) {
-        background-color: rgba(0, 0, 0, 0.07);
-        color: #1d1d1f;
-    }
-
-    .group-actions .delete-group-btn:hover {
-        background-color: rgba(255, 59, 48, 0.1);
-        color: #FF3B30;
-    }
-
-    .group-chat-list {
-        padding-left: 22px;
-        margin-top: 4px;
-    }
-
-    .history-group-item.drag-over-group .group-header {
-        background-color: rgba(0, 122, 255, 0.15) !important;
-        border: 1px dashed #007aff;
-    }
-
-    .new-item-dropdown-container {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-    }
-
-    #new-item-btn {
-        background-color: #3B82F6;
-        color: white;
-        padding: 1.5rem 0.875rem;
-        border-radius: 15px;
-        font-size: 0.9375rem;
-        font-weight: 500;
-        height: 40px;
-        border: none;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-        width: auto;
-        display: inline-flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: pointer;
-    }
-
-    #new-item-btn:hover {
-        background-color: #006fe6;
-    }
-
-    #new-item-btn:active {
-        background-color: #005bb5;
-    }
-
-    #new-item-btn .main-action-area {
-        flex-grow: 1;
-        display: flex;
-        align-items: center;
-    }
-
-    #new-item-btn .main-action-area .fas {
-        margin-right: 8px;
-    }
-
-    #new-item-dropdown-trigger-area {
-        padding: 10px 10px;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        border-left: none;
-        margin-left: 8px;
-        cursor: pointer;
-    }
-
-    #new-item-dropdown-trigger {
-        font-size: 0.8em;
-    }
-
-    #new-item-options {
-        background-color: #ffffff;
-        border: 1px solid #d2d2d7;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        z-index: 50;
-        width: 150px;
-        min-width: max-content;
-        position: absolute;
-        top: 100%;
-        margin-top: 4px;
-    }
-
-    #new-item-options a {
-        display: block;
-        padding: 10px 16px;
-        font-size: 0.9rem;
-        color: #1d1d1f;
-        text-decoration: none;
-        transition: background-color 0.15s ease;
-    }
-
-    #new-item-options a:hover {
-        background-color: rgba(0, 122, 255, 0.08);
-        color: #007aff;
-    }
-
-    #new-item-options a i {
-        margin-right: 10px;
-        width: 16px;
-        text-align: center;
-    }
-
-    #new-item-options a[data-action='new-group'] {
-        font-size: 0.9375rem;
-        font-weight: 500;
-        height: 40px;
-        padding: 1.5rem 0.875rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-    }
-
-    .settings-panel {
-        position: fixed;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        width: 420px;
-        min-width: 420px;
-        max-width: 550px;
-        overflow: auto;
-        background-color: white;
-        z-index: 40;
-        transform: translateX(100%);
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        border-left: none;
-        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.07);
-    }
-
-    .settings-panel.open {
-        transform: translateX(0);
-    }
-
-    .settings-header {
-        padding: 20px;
-        border-bottom: 1px solid #e5e5ea;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .settings-content {
-        padding: 20px;
-        overflow-y: auto;
-        height: calc(100% - 65px - 70px);
-    }
-
-    .settings-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.35);
-        z-index: 35;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        backdrop-filter: blur(4px);
-    }
-
-    .settings-overlay.open {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    .settings-form-group {
-        margin-bottom: 20px;
-    }
-
-    .settings-label {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 14px;
-        color: #1d1d1f;
-    }
-
-    .settings-input,
-    .settings-panel select {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1px solid #d2d2d7;
-        border-radius: 10px;
-        font-size: 14px;
-    }
-
-    #chat-search-input {
-        width: 100%;
-        font-size: 14px;
-        border: none;
-    }
-
-    #chat-search-input:focus {
-        outline: none;
-    }
-
-    #clear-search-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 16px;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        transition: color 0.2s ease;
-    }
-
-    #clear-search-btn:hover {
-        color: #333;
-    }
-
-    .sidebar .relative.flex.items-center {
-        background-color: #E5E5EA;
-        border-radius: 10px;
-        padding: 4px 0;
-    }
-
-    .settings-textarea {
-        min-height: 100px;
-        resize: vertical;
-    }
-
-    .settings-param-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-
-    .settings-param-group {
-        margin-bottom: 12px;
-    }
-
-    .settings-tabs {
-        display: flex;
-        padding: 6px;
-        background-color: #e5e5ea;
-        border-radius: 10px;
-        margin: 20px;
-        box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.08);
-    }
-
-    .settings-tabs .tab-button {
-        flex: 1;
-        padding: 8px 12px;
-        font-size: 14px;
-        font-weight: 500;
-        color: #636366;
-        background-color: transparent;
-        border: none;
-        border-radius: 7px;
-        cursor: pointer;
-        text-align: center;
-    }
-
-    .settings-tabs .tab-button.active {
-        background-color: white;
-        color: #1d1d1f;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-    }
-
-    .settings-tabs .tab-button:hover:not(.active) {
-        background-color: rgba(0, 0, 0, 0.04);
-    }
-
-    .settings-details summary {
-        cursor: pointer;
-        padding: 10px 0;
-        font-weight: 600;
-        font-size: 15px;
-        color: #1d1d1f;
-        display: flex;
-        align-items: center;
-        list-style: none;
-    }
-
-    .settings-details summary::-webkit-details-marker {
-        display: none;
-    }
-
-    .settings-details summary:before {
-        content: '\f078';
-        font-family: "Font Awesome 5 Free";
-        font-weight: 900;
-        margin-right: 8px;
-        transition: transform 0.2s ease;
-    }
-
-    .settings-details[open] summary:before {
-        transform: rotate(180deg);
-    }
-
-    .settings-details-content {
-        padding-top: 10px;
-        padding-bottom: 10px;
-    }
-
-    .settings-panel button {
-        border-radius: 10px;
-    }
-
-    .settings-panel button:active:not(:disabled) {
-        transform: scale(0.96);
-    }
-
-    #save-settings-btn {
-        padding: 12px 18px;
-        font-weight: 600;
-    }
-
-    #save-settings-btn:hover:not(:disabled) {
-        background-color: #0056b3;
-    }
-
-    .stream-toggle {
-        position: relative;
-        display: inline-block;
-        width: 52px;
-        height: 30px;
-    }
-
-    .stream-toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    .stream-toggle-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #e5e5ea;
-        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 30px;
-    }
-
-    .stream-toggle-slider:before {
-        position: absolute;
-        content: "";
-        height: 26px;
-        width: 26px;
-        left: 2px;
-        bottom: 2px;
-        background-color: white;
-        transition: .4s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 50%;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .stream-toggle input:checked+.stream-toggle-slider {
-        background-color: #34C759;
-    }
-
-    .stream-toggle input:checked+.stream-toggle-slider:before {
-        transform: translateX(22px);
-    }
-
-    .stream-toggle-text {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 11px;
-        font-weight: 600;
-        color: #fff;
-        pointer-events: none;
-        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .stream-toggle-text.on {
-        left: 7px;
-        opacity: 0;
-    }
-
-    .stream-toggle-text.off {
-        right: 7px;
-        opacity: 1;
-    }
-
-    .stream-toggle input:checked~.stream-toggle-text.on {
-        opacity: 1;
-    }
-
-    .stream-toggle input:checked~.stream-toggle-text.off {
-        opacity: 0;
-    }
-
-    .stream-toggle-tooltip {
-        position: absolute;
-        bottom: -24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #1d1d1f;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .stream-toggle:hover .stream-toggle-tooltip {
-        opacity: 1;
-    }
-
-    .model-selector {
-        position: relative;
-        display: inline-block;
-        width: 100%;
-    }
-
-    .model-selector-btn {
-        background-color: white;
-        border: 1px solid #d2d2d7;
-        border-radius: 10px;
-        padding: 10px 14px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
-        cursor: pointer;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .model-selector-btn:hover {
-        background-color: #f5f5f7;
-    }
-
-    .model-selector-options {
-        position: absolute;
-        top: calc(100% + 8px);
-        left: 0;
-        background-color: white;
-        border: 1px solid #d2d2d7;
-        border-radius: 12px;
-        width: 100%;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-        z-index: 10;
-        opacity: 0;
-        transform: translateY(-8px) scale(0.98);
-        transform-origin: top;
-        transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        pointer-events: none;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-
-    .model-selector.open .model-selector-options {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-        pointer-events: auto;
-    }
-
-    .model-selector-option {
-        padding: 12px 16px;
-        cursor: pointer;
-        margin: 4px 8px;
-        border-radius: 8px;
-    }
-
-    .model-selector-option:hover {
-        background-color: rgba(0, 122, 255, 0.1);
-    }
-
-    .model-selector-option.selected {
-        background-color: rgba(0, 122, 255, 0.1);
-        border-left: 3px solid #007aff;
-        font-weight: 600;
-        padding-left: calc(16px - 3px);
-    }
-
-    .model-name {
-        font-weight: 600;
-    }
-
-    .model-description {
-        font-size: 12px;
-        color: #86868b;
-        margin-top: 4px;
-    }
-
-    #settings-action-menu {}
-
-    #settings-action-menu a {
-        text-decoration: none;
-    }
-
-    #settings-action-menu a i {
-        width: 1.25em;
-    }
-
-    .fa-chevron-up.rotate-180 {
-        transform: rotate(180deg);
-    }
-
-    .fa-chevron-down.rotate-180 {
-        transform: rotate(180deg);
-    }
-
-    #settings-action-menu a:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-        /* Light grey background on hover */
-        color: #1d1d1f;
-        /* Darker text color on hover */
-    }
-
-    .settings-action-menu-separator {
-        height: 1px;
-        background-color: rgba(209, 213, 219, 0.7);
-        margin-left: 0.5rem;
-        margin-right: 0.5rem;
-    }
-
-    @media (max-width: 768px) {
-        .sidebar {
-            width: 100%;
-            position: fixed;
-            z-index: 100;
-            transform: translateX(-100%);
-        }
-
-        .sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .sidebar:not(.collapsed) {
-            transform: translateX(0);
-        }
-
-        .main-content {
-            margin-left: 0 !important;
-        }
-
-        #chat-container {
-            padding: 1rem !important;
-        }
-
-        .input-container {
-            width: 100% !important;
-            padding: 0.75rem 0.75rem !important;
-        }
-
-        .input-container .ml-2 {
-            margin-left: 0.5rem !important;
-        }
-
-        .input-container .md\:ml-3 {
-            margin-left: 0.5rem !important;
-        }
-
-        #message-input {
-            width: 100%;
-        }
-
-        #send-btn {
-            width: 100%;
-            margin-left: 0 !important;
-            height: 44px;
-        }
-
-        .user-message,
-        .assistant-message-wrapper {
-            max-width: 92%;
-        }
-
-        .settings-panel {
-            width: 100%;
-            min-width: unset;
-            max-width: unset;
-            border-left: none;
-        }
-
-        .settings-param-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .settings-tabs {
-            margin: 1rem;
-        }
-    }
-
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    @keyframes modalFadeIn {
-        0% {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-
-        100% {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-
-    @keyframes modalFadeOut {
-        0% {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        100% {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-    }
-  </style>
+  <link href="style/chat.css" rel="stylesheet">
   <script defer>
     const APP_CONSTANTS = {
         STORAGE_KEYS: {
@@ -1448,6 +115,12 @@
                     console.error("Error formatting timestamp:", isoString, e);
                     return '';
                 }
+            }
+            static getUrlParameter(name) {
+                name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+                var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
+                var results = regex.exec(location.search);
+                return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
             }
         }
         class NotificationManager {
@@ -1852,9 +525,11 @@
                 const groupsData = JSON.parse(localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.GROUPS)) || [];
                 const exportContent = {
                     groups: groupsData,
-                    chats: chatsData
+                    chats: chatsData,
+                    ts: new Date().toISOString(),
+                    user: this.app.STATE.currentUser || 'unknown'
                 };
-                const exportJsonString = JSON.stringify(exportContent, null, 2); // Pretty print JSON
+                const exportJsonString = JSON.stringify(exportContent, null, 2);
                 if (chatsData.length > 0 || groupsData.length > 0) {
                     const blob = new Blob([exportJsonString], { type: 'application/json;charset=utf-8;' });
                     const url = URL.createObjectURL(blob);
@@ -1910,12 +585,12 @@
                             const thinkContentClass = role === 'user' ? 'user-think-content' : 'assistant-think-content';
                             const thinkToggleClass = 'assistant-think-toggle' + (role === 'user' ? ' user-think-toggle' : '');
                             thinkBlockHTML = `
-                <div class="${thinkContainerClass}">
-                  <div class="${thinkToggleClass}">
-                    <i class="fas fa-chevron-right"></i><span>深度思考</span>
-                  </div>
-                  <div class="${thinkContentClass}">${marked.parse(thinkContent)}</div>
-                </div>`;
+        <div class="${thinkContainerClass}">
+          <div class="${thinkToggleClass}">
+            <i class="fas fa-chevron-right"></i><span>深度思考</span>
+          </div>
+          <div class="${thinkContentClass}">${marked.parse(thinkContent)}</div>
+        </div>`;
                         } else {
                             const $clonedElement = $(collapsibleThinkTemplateHTML);
                             $clonedElement.addClass(role === 'user' ? 'user-think-container' : 'assistant-think-container');
@@ -1995,7 +670,6 @@
                 } else {
                     const { current, defaultSettings } = this.app.data._getActiveSettingsContext();
                     modelToDisplay = Utils.getEffectiveSetting(current, defaultSettings, 'model');
-                    console.warn("updateSelectedModelDisplay: newlySelectedModel was undefined or invalid, using from settings context:", modelToDisplay);
                 }
                 const modelInfo = DEFAULT_MODEL_LIST[modelToDisplay];
                 if (!modelInfo) {
@@ -2850,6 +1524,9 @@
                         this.app.ui.hideSettingsActionMenu();
                     });
                 }
+                if (this.app.DOM.shareChatMenuItem && this.app.DOM.shareChatMenuItem.length) {
+                    this.app.DOM.shareChatMenuItem.on('click', this.handleShareChatClick.bind(this));
+                }
                 if (closeSettingsBtn && closeSettingsBtn.length) closeSettingsBtn.on('click', () => this.app.ui.hideSettingsPanel());
                 if (settingsOverlay && settingsOverlay.length) settingsOverlay.on('click', () => this.app.ui.hideSettingsPanel());
                 if (this.app.DOM.confirmModal && this.app.DOM.confirmModal.length) {
@@ -2904,6 +1581,36 @@
                     chatSearchInput.on('keypress', this.handleChatSearchKeypress.bind(this));
                 }
                 if (clearSearchBtn && clearSearchBtn.length) clearSearchBtn.on('click', this.handleClearSearchClick.bind(this));
+            }
+            handleShareChatClick(event) {
+                event.preventDefault();
+                const chat = this.app.data.getCurrentChat();
+                const currentUser = this.app.STATE.currentUser;
+                if (!chat || !currentUser) {
+                    this.app.ui.notification.warning('请先登录并选择一个对话。');
+                    this.app.ui.hideSettingsActionMenu();
+                    return;
+                }
+                if (chat.messages.length === 0) {
+                    this.app.ui.notification.warning('当前对话为空，无法分享。');
+                    this.app.ui.hideSettingsActionMenu();
+                    return;
+                }
+                try {
+                    const chatJson = JSON.stringify(chat);
+                    const encodedChatJson = encodeURIComponent(chatJson);
+                    const shareUrl = `${window.location.origin}${window.location.pathname}?action=share&from=${encodeURIComponent(currentUser)}&chat=${encodedChatJson}`;
+                    navigator.clipboard.writeText(shareUrl).then(() => {
+                        this.app.ui.notification.success('分享链接已复制到剪贴板！');
+                    }).catch(err => {
+                        console.error('Failed to copy share URL:', err);
+                        this.app.ui.notification.error('复制分享链接失败。');
+                    });
+                } catch (e) {
+                    console.error('Error generating share URL:', e);
+                    this.app.ui.notification.error('生成分享链接时发生错误。');
+                }
+                this.app.ui.hideSettingsActionMenu();
             }
             handleSidebarToggleClick() {
                 const sidebar = this.app.DOM.sidebar;
@@ -3146,6 +1853,7 @@
                     settingsActionMenu: $('#settings-action-menu'),
                     clearChatMenuItem: $('#clear-chat-menu-item'),
                     exportChatMenuItem: $('#export-chat-menu-item'),
+                    shareChatMenuItem: $('#share-chat-menu-item'),
                     userLoginModal: $('#user-login-modal'),
                     usernameInput: $('#username-input'),
                     startChatBtn: $('#start-chat-btn'),
@@ -3287,11 +1995,61 @@
                 const allFilteredChats = [...new Set([...filteredChats, ...chatsInMatchedGroups])];
                 this.ui.renderChatHistory(allFilteredChats);
             }
+            _handleShareAction() {
+                const action = Utils.getUrlParameter('action');
+                if (action === 'share') {
+                    const username = Utils.getUrlParameter('from');
+                    if (username) {
+                        if (this.STATE.currentUser && this.STATE.currentUser === username) {
+                            this.ui.notification.info('当前用户与分享用户相同，无需操作。');
+                            return;
+                        }
+                        let targetGroup = this.STATE.groups.find(group => group.name === username);
+                        if (!targetGroup) {
+                            targetGroup = this.data.createGroup(username);
+                            this.ui.notification.success(`已为分享用户 "${username}" 创建新分组。`);
+                        } else {
+                            this.ui.notification.info(`分组 "${username}" 已存在。`);
+                        }
+                        const encodedChat = Utils.getUrlParameter('chat');
+                        if (encodedChat) {
+                            try {
+                                const sharedChat = JSON.parse(decodeURIComponent(encodedChat));
+                                let existingChat = this.STATE.chats.find(c => c.id === sharedChat.id);
+                                if (existingChat) {
+                                    if (existingChat.groupId !== targetGroup.id) {
+                                        this.data.assignChatToGroup(existingChat.id, targetGroup.id);
+                                        this.ui.notification.success(`分享对话 "${existingChat.name}" 已移动到分组 "${targetGroup.name}"。`);
+                                    } else {
+                                        this.ui.notification.info(`分享对话 "${existingChat.name}" 已存在于分组 "${targetGroup.name}"。`);
+                                    }
+                                    this.data.loadChatById(existingChat.id);
+                                } else {
+                                    sharedChat.groupId = targetGroup.id;
+                                    this.STATE.chats.unshift(sharedChat);
+                                    this.data.saveState();
+                                    this.ui.renderChatHistory();
+                                    this.data.loadChatById(sharedChat.id);
+                                    this.ui.notification.success(`已加载分享对话 "${sharedChat.name}" 并移动到分组 "${targetGroup.name}"。`);
+                                }
+                                if (targetGroup && !targetGroup.isExpanded) {
+                                    this.data.toggleGroupExpansion(targetGroup.id);
+                                }
+                            } catch (e) {
+                                console.error('Error parsing shared chat data:', e);
+                                this.ui.notification.error('加载分享对话失败。');
+                            }
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                        }
+                    }
+                }
+            }
             init() {
                 this._initializeDOMReferences();
                 this._loadInitialData();
                 this._initializeUIAndEvents();
                 this._loadUserAndChatState();
+                this._handleShareAction();
             }
         }
         let app;
@@ -3303,7 +2061,6 @@
     })();
   </script>
 </head>
-
 <body class="bg-white h-screen overflow-hidden">
 <div class="sidebar flex flex-col h-full common-transition" id="sidebar">
   <div class="p-3 border-b border-gray-200 flex flex-col gap-2 h-auto">
@@ -3373,7 +2130,7 @@
       </div>
       <div class="w-full border-t border-gray-200 my-2"></div>
       <div class="w-full flex items-center bg-white rounded-xl relative" style="min-height: 44px;">
-                    <textarea class="flex-1 w-full self-stretch bg-transparent focus:outline-none pl-2 pr-1 py-1 text-[15px] placeholder-gray-500 resize-none rounded-xl common-transition" id="message-input" placeholder="开始输入 ..." rows="1"></textarea>
+        <textarea class="flex-1 w-full self-stretch bg-transparent focus:outline-none pl-2 pr-1 py-1 text-[15px] placeholder-gray-500 resize-none rounded-xl common-transition" id="message-input" placeholder="开始输入 ..." rows="1"></textarea>
         <button class="flex-shrink-0 mr-1 my-0.5 rounded-[10px] text-white bg-blue-500 hover:bg-blue-600 active:bg-blue-700 common-transition common-transform-transition disabled:opacity-50 disabled:bg-gray-400 relative flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500" id="send-btn" style="width: 36px; height: 36px;">
           <i class="fas fa-paper-plane text-base"></i> <span class="sending-spinner"></span></button>
       </div>
@@ -3440,14 +2197,12 @@
       </div>
       <div class="settings-form-group">
         <div class="flex items-center justify-between">
-          <label class="settings-label mb-0">流式输出 <span class="text-xs text-gray-500 ml-2">是否启用流式输出</span> </label> <label class="stream-toggle"> <input id="streaming-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span>
-          <span class="stream-toggle-text off">关</span> </label>
+          <label class="settings-label mb-0">流式输出 <span class="text-xs text-gray-500 ml-2">是否启用流式输出</span> </label> <label class="stream-toggle"> <input id="streaming-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span> <span class="stream-toggle-text off">关</span> </label>
         </div>
       </div>
       <div class="settings-form-group">
         <div class="flex items-center justify-between">
-          <label class="settings-label mb-0">深度思考 <span class="text-xs text-gray-500 ml-2">是否启用深度思考（混合模型）</span> </label> <label class="stream-toggle"> <input id="reasoning-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span>
-          <span class="stream-toggle-text off">关</span> </label>
+          <label class="settings-label mb-0">深度思考 <span class="text-xs text-gray-500 ml-2">是否启用深度思考（混合模型）</span> </label> <label class="stream-toggle"> <input id="reasoning-toggle" type="checkbox"> <span class="stream-toggle-slider"></span> <span class="stream-toggle-text on">开</span> <span class="stream-toggle-text off">关</span> </label>
         </div>
       </div>
       <details class="settings-details" open>
@@ -3545,7 +2300,7 @@
       <div class="flex-1 min-w-0 mr-2"><span class="history-name truncate text-[13px]"></span> <input class="edit-name-input input-focus-style common-transition is-hidden" maxlength="40" type="text">
       </div>
       <div class="flex items-center">
-                    <span class="time-string text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 common-transition mr-2"></span>
+        <span class="time-string text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 common-transition mr-2"></span>
         <div class="history-item-actions">
           <button class="edit-btn action-icon-button common-transition" title="重命名">
             <i class="fas fa-pencil-alt text-xs"></i>
@@ -3615,5 +2370,4 @@
   </template>
 </div>
 </body>
-
 </html>

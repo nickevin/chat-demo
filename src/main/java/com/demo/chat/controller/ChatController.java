@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,18 +31,21 @@ public class ChatController {
 
                 if (request.getSettings().isReasoning()) {
                     emitter.send("{\"delta\":\"<think>\",\"status\":\"delta\"}");
-                    emitter.send("{\"delta\":\"你\",\"status\":\"delta\"}");
-                    emitter.send("{\"delta\":\"好\",\"status\":\"delta\"}");
-                    emitter.send("{\"delta\":\"！\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"我\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"在\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"思考\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\"中\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\".\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\".\",\"status\":\"delta\"}");
+                    emitter.send("{\"delta\":\".\",\"status\":\"delta\"}");
                     emitter.send("{\"delta\":\"</think>\",\"status\":\"delta\"}");
                 }
+                emitter.send("{\"delta\":\"[流式]\",\"status\":\"delta\"}");
                 emitter.send("{\"delta\":\"hello\",\"status\":\"delta\"}");
                 TimeUnit.MILLISECONDS.sleep(250);
                 emitter.send("{\"delta\":\" world\",\"status\":\"delta\"}");
                 TimeUnit.MILLISECONDS.sleep(250);
-                emitter.send("{\"delta\":\" " + LocalDateTime.now() + "\",\"status\":\"delta\"}");
-                TimeUnit.MILLISECONDS.sleep(250);
-                emitter.send("{\"response\":\"hello world" + LocalDateTime.now() + "\",\"status\":\"finish\"}");
+                emitter.send("{\"response\":\"hello world" + "\",\"status\":\"finish\"}");
                 TimeUnit.MILLISECONDS.sleep(250);
                 emitter.complete();
             } catch (Exception e) {
@@ -58,13 +60,13 @@ public class ChatController {
         log.debug("{}", request);
 
         TimeUnit.MILLISECONDS.sleep(800);
-
+        String result = "";
         ChatResponse response = new ChatResponse();
         if (request.getSettings().isReasoning()) {
-            response.setResponse("<think>你好啊!</think>hello world " + LocalDateTime.now());
-        } else {
-            response.setResponse("你好啊! " + LocalDateTime.now());
+            result = "<think>我在思考中...</think>";
         }
+        result += "[非流式]你好啊!";
+        response.setResponse(result);
         return response;
     }
 
